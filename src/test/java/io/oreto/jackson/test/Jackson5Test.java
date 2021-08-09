@@ -2,10 +2,10 @@ package io.oreto.jackson.test;
 
 import io.oreto.jackson.Jackson5;
 import io.oreto.jackson.Structure;
+import io.oreto.jackson.latte.Lists;
 import io.oreto.jackson.test.pojos.Pojo;
 import io.oreto.jackson.test.pojos.Pojo1;
 import io.oreto.jackson.test.pojos.Pojo3;
-import io.oreto.latte.collections.Lists;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;

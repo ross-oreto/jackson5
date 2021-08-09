@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvParser;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
-import io.oreto.latte.IO;
+import io.oreto.jackson.latte.IO;
 
 import java.io.File;
 import java.io.IOException;

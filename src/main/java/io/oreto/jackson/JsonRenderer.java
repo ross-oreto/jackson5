@@ -7,8 +7,8 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.oreto.latte.map.MultiString;
-import io.oreto.latte.str.Str;
+import io.oreto.jackson.latte.MultiString;
+import io.oreto.jackson.latte.Str;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -65,7 +65,7 @@ class JsonRenderer {
 
     public String render(Object o, String view, String selectValue, String dropValue) {
         // if view is present, use the specified view.
-        if (!Str.isBlank(view)) {
+        if (Str.isNotBlank(view)) {
             o = useView(o, view);
         }
         // if there are no drops or selects just render normally
@@ -78,7 +78,7 @@ class JsonRenderer {
         } else {
             List<ObjectNode> json = initTree(o);
 
-            if (!Str.isBlank(selectValue) && !Str.isBlank(dropValue)) {
+            if (Str.isNotBlank(selectValue) && Str.isNotBlank(dropValue)) {
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
                 walk(json, "", picker(selectValue), copy);
 
@@ -91,7 +91,7 @@ class JsonRenderer {
 
                 track(json, "", picker(dropValue), null);
                 return json.size() == 1 ? json.get(0).toString() : render(json);
-            } else if (!Str.isBlank(selectValue)) {
+            } else if (Str.isNotBlank(selectValue)) {
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
                 walk(json, "", picker(selectValue), copy);
                 return copy.toString();
@@ -115,7 +115,7 @@ class JsonRenderer {
             elements = StreamSupport.stream(((ArrayNode) node).spliterator(), false)
                     .filter(it -> it instanceof ObjectNode)
                     .map(it -> (ObjectNode) it).collect(Collectors.toList());
-            Str str = Str.of(view).trim();
+            String str = view.trim();
             if (str.startsWith("[") && str.endsWith("]")) {
                 String[] range = str.subSequence(1, str.length() - 1).toString().split(":");
                 int start = Str.toInteger(range[0]).orElse(1) - 1;
