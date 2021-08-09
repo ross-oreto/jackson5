@@ -1,0 +1,10 @@
+.idea
+/build
+/target
+*.iml
+*/build
+*/target
+*/*.iml
+secrets.txt
+settings.xml
+
