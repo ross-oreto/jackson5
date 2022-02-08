@@ -1,5 +1,6 @@
 package io.oreto.jackson.test;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.oreto.jackson.Jackson5;
 import io.oreto.jackson.Structure;
 import io.oreto.jackson.latte.Lists;
@@ -16,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class Jackson5Test {
 
     @Test
-    public void select1() {
+    public void select1() throws JsonProcessingException {
         Jackson5 jackson5 = Jackson5.build();
 
         List<Pojo> items = Lists.of(
@@ -32,7 +33,7 @@ public class Jackson5Test {
     }
 
     @Test
-    public void select2() {
+    public void select2() throws JsonProcessingException {
         List<Pojo> pojos = Lists.of(new Pojo("test1", "a")
                 , new Pojo("test2", "b")
                 , new Pojo("test3", "c"));
@@ -46,7 +47,7 @@ public class Jackson5Test {
     }
 
     @Test
-    public void select3() {
+    public void select3() throws JsonProcessingException {
         List<Pojo> pojos = Lists.of(new Pojo("test1", "a")
                 , new Pojo("test2", "b")
                 , new Pojo("test3", "c"));
@@ -60,7 +61,7 @@ public class Jackson5Test {
     }
 
     @Test
-    public void select4() {
+    public void select4() throws JsonProcessingException {
         List<Pojo> pojos = Lists.of(
                 new Pojo("test1", "a")
                 , new Pojo("test2", "b")
@@ -76,7 +77,7 @@ public class Jackson5Test {
     }
 
     @Test
-    public void select5() {
+    public void select5() throws JsonProcessingException {
         List<Pojo> items = Lists.of(
                 new Pojo("test1", "a")
                         .withPojos(new Pojo1("a").withPojos("1", "2")
@@ -101,7 +102,7 @@ public class Jackson5Test {
     }
 
     @Test
-    public void select6() {
+    public void select6() throws JsonProcessingException {
         List<Pojo3> items = Lists.of(
                 new Pojo3("pojo1", new Pojo("test1"))
                 , new Pojo3("pojo2", new Pojo("test2").withPojos("a", "b"))
@@ -114,7 +115,7 @@ public class Jackson5Test {
     }
 
     @Test
-    public void simple() {
+    public void simple() throws JsonProcessingException {
         Jackson5 jackson5 = Jackson5.build();
         String json = jackson5.render(new HashMap<String, String>(){{ put("test", "t1"); }});
         assertEquals("{\"test\":\"t1\"}", json);

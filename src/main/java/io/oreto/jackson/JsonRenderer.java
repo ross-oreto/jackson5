@@ -31,12 +31,12 @@ class JsonRenderer {
     }
 
     public JsonRenderer pretty(boolean pretty) {
-       this.pretty = pretty;
-       return this;
+        this.pretty = pretty;
+        return this;
     }
 
     protected ObjectMapper mapper() {
-       return Jackson5.mappers.get(this.name);
+        return Jackson5.mappers.get(this.name);
     }
     protected ObjectReader reader() {
         return Jackson5.reader(this.name);
@@ -51,30 +51,29 @@ class JsonRenderer {
                 : mapper().writer().writeValueAsString(o);
     }
 
-    public String render(Object o)  {
-        try {
-            if (o instanceof Structurable) {
-                Structurable struct = (Structurable) o;
-                return render(o, struct.view(), struct.select(), struct.drop());
-            }
-            return this.asString(o, pretty);
-        } catch (JsonProcessingException ignored) {
-            return null;
-        }
+    public String render(Object o) throws JsonProcessingException {
+        return asString(o, pretty);
+    }
+    public String render(Object o, String view, String selectValue, String dropValue) throws JsonProcessingException {
+        return asString(json(o, view, selectValue, dropValue), pretty);
     }
 
-    public String render(Object o, String view, String selectValue, String dropValue) {
+    public JsonNode json(Object o)  {
+        if (o instanceof Structurable) {
+            Structurable struct = (Structurable) o;
+            return json(o, struct.view(), struct.select(), struct.drop());
+        }
+        return mapper().valueToTree(o);
+    }
+
+    public JsonNode json(Object o, String view, String selectValue, String dropValue) {
         // if view is present, use the specified view.
         if (Str.isNotBlank(view)) {
             o = useView(o, view);
         }
         // if there are no drops or selects just render normally
         if ((Str.isBlank(dropValue) || o == null) && Str.isBlank(selectValue)) {
-            try {
-                return o instanceof ObjectNode ? o.toString() : this.asString(o, pretty);
-            } catch (JsonProcessingException ignored) {
-                return null;
-            }
+            return o instanceof ObjectNode ? (JsonNode) o : mapper().valueToTree(o);
         } else {
             List<ObjectNode> json = initTree(o);
 
@@ -90,16 +89,23 @@ class JsonRenderer {
                         .collect(Collectors.toList());
 
                 track(json, "", picker(dropValue), null);
-                return json.size() == 1 ? json.get(0).toString() : render(json);
+                return json.size() == 1 ? json.get(0) : toArrayNode(json);
             } else if (Str.isNotBlank(selectValue)) {
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
                 walk(json, "", picker(selectValue), copy);
-                return copy.toString();
+                return copy;
             } else {
                 track(json, "", picker(dropValue), null);
-                return json.size() == 1 ? json.get(0).toString() : render(json);
+                return json.size() == 1 ? json.get(0) : toArrayNode(json);
             }
         }
+    }
+
+    private ArrayNode toArrayNode(Collection<ObjectNode> nodes) {
+        ArrayNode arrayNode = (ArrayNode) reader().createArrayNode();
+        for(ObjectNode node : nodes)
+            arrayNode.add(node);
+        return arrayNode;
     }
 
     private Object useView(Object o, String view) {
@@ -191,7 +197,7 @@ class JsonRenderer {
                     break;
                 default:
                     if (dotted == 1 && c == ' ') {
-                            dotted = 2;
+                        dotted = 2;
                     } else if (dotted == 2 && c != ' ') {
                         currentAddress = close(sb, address, picks, currentAddress);
                         dotted = 0;
@@ -208,9 +214,9 @@ class JsonRenderer {
         Map<String, Long> hits = new HashMap<>();
         picks.asMap().values().stream().flatMap(Collection::stream)
                 .filter(it -> it.startsWith("*")).forEach(it -> {
-            String path = it.substring(1);
-            hits.put(it, picks.asMap().keySet().stream().filter(key -> key.startsWith(path)).count());
-        });
+                    String path = it.substring(1);
+                    hits.put(it, picks.asMap().keySet().stream().filter(key -> key.startsWith(path)).count());
+                });
 
         return picks.sort((o1, o2) -> {
             boolean isPointer = hits.containsKey(o1);
