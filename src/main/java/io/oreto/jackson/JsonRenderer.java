@@ -19,6 +19,11 @@ class JsonRenderer {
     private final String name;
     private boolean pretty;
 
+    /**
+     * Constructor
+     * @param name Name of the underlying object mapper to use
+     * @param pretty Pretty print json if true
+     */
     public JsonRenderer(String name, boolean pretty) {
         this.name = name;
         this.pretty = pretty;
@@ -35,16 +40,33 @@ class JsonRenderer {
         return this;
     }
 
+    /**
+     * @return The underlying ObjectMapper
+     */
     protected ObjectMapper mapper() {
         return Jackson5.mappers.get(this.name);
     }
+
+    /**
+     * @return The underlying ObjectReader
+     */
     protected ObjectReader reader() {
         return Jackson5.reader(this.name);
     }
+    /**
+     * @return The underlying ObjectWriter
+     */
     protected ObjectWriter writer() {
         return Jackson5.writer(this.name);
     }
 
+    /**
+     * Serialize Object o to JSON
+     * @param o The Object to serialize
+     * @param pretty Pretty print the JSON if true
+     * @return A JSON String
+     * @throws JsonProcessingException If errors occur during serialization
+     */
     protected String asString(Object o, boolean pretty) throws JsonProcessingException {
         return pretty
                 ? mapper().writerWithDefaultPrettyPrinter().writeValueAsString(o)
