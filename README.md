@@ -20,7 +20,16 @@ String json = jackson5.render(data);
 
 ### Structure DSL
 - The structure language is designed almost identically to graphQL. 
-- select the name only.
+- include the name field.
 ```
 String json = jackson5.render(data, "{ name }");
 ```
+- exclude the name field.
+```
+jackson5.render(data, Structure.of().drop("name"))
+```
+
+For more advanced examples, look at src/test/io/oreto/jackson/Jackson5Test
+
+Jackson 5 also support CSV. src/test/io/oreto/jackson/CsvTest
+

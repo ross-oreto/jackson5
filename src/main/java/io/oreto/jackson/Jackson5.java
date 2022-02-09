@@ -11,6 +11,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -277,6 +278,16 @@ public class Jackson5 {
     }
 
     /**
+     * Convert Object to a JsonNode object
+     * @param o Object to convert
+     * @param fields fields which are included in the JsonNode object
+     * @return JsonNode
+     */
+    public JsonNode json(Object o, String fields) {
+        return jsonRenderer.json(o, Structure.of(fields));
+    }
+
+    /**
      * Serialize Object as JSON string
      * @param o The object to serialize
      * @return JSON String representing the Object o
@@ -296,5 +307,16 @@ public class Jackson5 {
      */
     public String render(Object o, Structurable struct) throws JsonProcessingException {
         return jsonRenderer.render(o, struct);
+    }
+
+    /**
+     * Serialize Object as JSON string
+     * @param o The object to serialize
+     * @param fields fields which are included in the JSON
+     * @return JSON String representing the Object o
+     * @throws JsonProcessingException If errors occur during serialization
+     */
+    public String render(Object o, String fields) throws JsonProcessingException {
+        return jsonRenderer.render(o, Structure.of(fields));
     }
 }
