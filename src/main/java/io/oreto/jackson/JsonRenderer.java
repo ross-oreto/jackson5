@@ -74,7 +74,7 @@ class JsonRenderer {
      * Render JSON String
      * @param o Object to serialize to JSON
      * @return The JSON String
-     * @throws JsonProcessingException
+     * @throws JsonProcessingException If errors occur during serialization
      */
     public String render(Object o) throws JsonProcessingException {
         return asString(o, pretty);
@@ -85,7 +85,7 @@ class JsonRenderer {
      * @param o Object to serialize to JSON
      * @param fields Fields representing the object fields which are serialized
      * @return The JSON String
-     * @throws JsonProcessingException
+     * @throws JsonProcessingException If errors occur during serialization
      */
     public String render(Object o, IFields fields) throws JsonProcessingException {
         return asString(json(o, fields), pretty);
