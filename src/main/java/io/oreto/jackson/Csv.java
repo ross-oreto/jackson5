@@ -264,9 +264,18 @@ public class Csv<T> {
      * Options describing how the csv is formed/structured.
      */
     public static class Options {
+        /**
+         * Standard header in csv
+         * @return Options object
+         */
         public static Options header() {
             return new Options();
         }
+
+        /**
+         * Don't include header in csv
+         * @return Options object
+         */
         public static Options noHeader() {
             return new Options().withoutHeader();
         }
@@ -280,38 +289,68 @@ public class Csv<T> {
 
         private Options() {}
 
+        /**
+         * Don't include header in csv
+         * @return this Options object
+         */
         public Options withoutHeader() {
             this.header = false;
             return this;
         }
 
+        /**
+         * Don't include quotes in csv
+         * @return this Options object
+         */
         public Options withoutQuote() {
             this.withoutQuote = true;
             return this;
         }
 
+        /**
+         * Columns to include in the csv
+         * @param include Column names to include in csv
+         * @return this Options object
+         */
         public Options include(String... include) {
             this.include = include;
             Arrays.sort(this.include);
             return this;
         }
 
+        /**
+         * Columns to exclude in the csv
+         * @param exclude Column names to exclude in csv
+         * @return this Options object
+         */
         public Options exclude(String... exclude) {
             this.exclude = exclude;
             Arrays.sort(this.exclude);
             return this;
         }
 
+        /**
+         * Order the specified columns
+         * @param order List of columns to order by
+         * @return this Options object
+         */
         public Options order(String... order) {
             this.order = order;
             return this;
         }
 
+        /**
+         * Sort in ascending order
+         * @return this Options object
+         */
         public Options asc() {
             this.asc = true;
             return this;
         }
-
+        /**
+         * Sort in descending order
+         * @return this Options object
+         */
         public Options desc() {
             this.asc = false;
             return this;
