@@ -1,6 +1,8 @@
 package io.oreto.jackson;
 
-
+/**
+ * Implementation of Structurable
+ */
 public class Structure implements Structurable {
     public static Structure of(String select) {
         return new Structure().select(select);

@@ -1,12 +1,9 @@
-package io.oreto.jackson.test;
+package io.oreto.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import io.oreto.jackson.Jackson5;
-import io.oreto.jackson.Structure;
-import io.oreto.jackson.latte.Lists;
-import io.oreto.jackson.test.pojos.Pojo;
-import io.oreto.jackson.test.pojos.Pojo1;
-import io.oreto.jackson.test.pojos.Pojo3;
+import io.oreto.jackson.pojos.Pojo;
+import io.oreto.jackson.pojos.Pojo1;
+import io.oreto.jackson.pojos.Pojo3;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -112,6 +109,20 @@ public class Jackson5Test {
         assertEquals("[{\"name\":\"pojo1\",\"pojo\":{\"name\":\"test1\",\"pojos\":[]}}" +
                         ",{\"name\":\"pojo2\",\"pojo\":{\"name\":\"test2\",\"pojos\":[{\"name\":\"a\"},{\"name\":\"b\"}]}}]"
                 , jackson5.render(items, Structure.of("{ name pojo { name pojos {name} } }")));
+    }
+
+    @Test
+    public void select7() throws JsonProcessingException {
+        List<Pojo3> items = Lists.of(
+                new Pojo3("pojo1", new Pojo("test1"))
+                , new Pojo3("pojo2", new Pojo("test2").withPojos("a", "b"))
+        );
+        Jackson5 jackson5 = Jackson5.build();
+
+        assertEquals("[{\"name\":\"pojo1\",\"pojo\":{\"name\":\"test1\",\"description\":null,\"pojos\":[]}}," +
+                        "{\"name\":\"pojo2\",\"pojo\":{\"name\":\"test2\",\"description\":null,\"pojos\":" +
+                        "[{\"description\":null,\"pojos\":[]},{\"description\":null,\"pojos\":[]}]}}]"
+                , jackson5.render(items, Structure.of().drop("{ pojo { pojos {name} } }")));
     }
 
     @Test

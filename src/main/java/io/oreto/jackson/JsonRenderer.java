@@ -7,8 +7,6 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.oreto.jackson.latte.MultiString;
-import io.oreto.jackson.latte.Str;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -16,48 +14,47 @@ import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 class JsonRenderer {
-    private final String name;
+    private final ObjectMapper objectMapper;
     private boolean pretty;
 
     /**
      * Constructor
-     * @param name Name of the underlying object mapper to use
+     * @param objectMapper ObjectMapper to use for this renderer
      * @param pretty Pretty print json if true
      */
-    public JsonRenderer(String name, boolean pretty) {
-        this.name = name;
+    public JsonRenderer(ObjectMapper objectMapper, boolean pretty) {
+        this.objectMapper = objectMapper;
         this.pretty = pretty;
     }
-    public JsonRenderer(boolean pretty) {
-        this("", pretty);
-    }
-    public JsonRenderer() {
-        this("", false);
+
+    /**
+     * @param objectMapper ObjectMapper to use for this renderer
+     */
+    public JsonRenderer(ObjectMapper objectMapper) {
+        this(objectMapper, false);
     }
 
+    /**
+     * Pretty print JSON
+     * @param pretty Pretty print json if true
+     * @return This JsonRenderer
+     */
     public JsonRenderer pretty(boolean pretty) {
         this.pretty = pretty;
         return this;
     }
 
     /**
-     * @return The underlying ObjectMapper
-     */
-    protected ObjectMapper mapper() {
-        return Jackson5.mappers.get(this.name);
-    }
-
-    /**
      * @return The underlying ObjectReader
      */
     protected ObjectReader reader() {
-        return Jackson5.reader(this.name);
+        return objectMapper.reader();
     }
     /**
      * @return The underlying ObjectWriter
      */
     protected ObjectWriter writer() {
-        return Jackson5.writer(this.name);
+        return objectMapper.writer();
     }
 
     /**
@@ -69,39 +66,63 @@ class JsonRenderer {
      */
     protected String asString(Object o, boolean pretty) throws JsonProcessingException {
         return pretty
-                ? mapper().writerWithDefaultPrettyPrinter().writeValueAsString(o)
-                : mapper().writer().writeValueAsString(o);
+                ? writer().withDefaultPrettyPrinter().writeValueAsString(o)
+                : writer().writeValueAsString(o);
     }
 
+    /**
+     * Render JSON String
+     * @param o Object to serialize to JSON
+     * @return The JSON String
+     * @throws JsonProcessingException
+     */
     public String render(Object o) throws JsonProcessingException {
         return asString(o, pretty);
     }
-    public String render(Object o, String view, String selectValue, String dropValue) throws JsonProcessingException {
-        return asString(json(o, view, selectValue, dropValue), pretty);
+
+    /**
+     * Render JSON String
+     * @param o Object to serialize to JSON
+     * @param structurable Structure representing the object fields which are serialized
+     * @return The JSON String
+     * @throws JsonProcessingException
+     */
+    public String render(Object o, Structurable structurable) throws JsonProcessingException {
+        return asString(json(o, structurable), pretty);
     }
 
+    /**
+     * Convert Object to a JsonNode object
+     * @param o Object to convert
+     * @return JsonNode
+     */
     public JsonNode json(Object o)  {
         if (o instanceof Structurable) {
-            Structurable struct = (Structurable) o;
-            return json(o, struct.view(), struct.select(), struct.drop());
+            return json(o, (Structurable) o);
         }
-        return mapper().valueToTree(o);
+        return objectMapper.valueToTree(o);
     }
 
-    public JsonNode json(Object o, String view, String selectValue, String dropValue) {
+    /**
+     * Convert Object to a JsonNode object
+     * @param o Object to convert
+     * @param structurable Structure representing the object fields which are converted
+     * @return JsonNode
+     */
+    public JsonNode json(Object o, Structurable structurable) {
         // if view is present, use the specified view.
-        if (Str.isNotBlank(view)) {
-            o = useView(o, view);
+        if (Str.isNotBlank(structurable.view())) {
+            o = useView(o, structurable.view());
         }
         // if there are no drops or selects just render normally
-        if ((Str.isBlank(dropValue) || o == null) && Str.isBlank(selectValue)) {
-            return o instanceof ObjectNode ? (JsonNode) o : mapper().valueToTree(o);
+        if ((Str.isBlank(structurable.drop()) || o == null) && Str.isBlank(structurable.select())) {
+            return o instanceof ObjectNode ? (JsonNode) o : objectMapper.valueToTree(o);
         } else {
             List<ObjectNode> json = initTree(o);
 
-            if (Str.isNotBlank(selectValue) && Str.isNotBlank(dropValue)) {
+            if (Str.isNotBlank(structurable.select()) && Str.isNotBlank(structurable.drop())) {
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
-                walk(json, "", picker(selectValue), copy);
+                walk(json, "", picker(structurable.select()), copy);
 
                 json = copy instanceof ObjectNode
                         ? new ArrayList<ObjectNode>() {{ add((ObjectNode) copy); }}
@@ -110,14 +131,14 @@ class JsonRenderer {
                         .map(it -> (ObjectNode) it)
                         .collect(Collectors.toList());
 
-                track(json, "", picker(dropValue), null);
+                track(json, "", picker(structurable.drop()), null);
                 return json.size() == 1 ? json.get(0) : toArrayNode(json);
-            } else if (Str.isNotBlank(selectValue)) {
+            } else if (Str.isNotBlank(structurable.select())) {
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
-                walk(json, "", picker(selectValue), copy);
+                walk(json, "", picker(structurable.select()), copy);
                 return copy;
             } else {
-                track(json, "", picker(dropValue), null);
+                track(json, "", picker(structurable.drop()), null);
                 return json.size() == 1 ? json.get(0) : toArrayNode(json);
             }
         }
@@ -133,7 +154,7 @@ class JsonRenderer {
     private Object useView(Object o, String view) {
         List<JsonNode> picks = new ArrayList<>();
 
-        Object node = mapper().valueToTree(o);
+        Object node = objectMapper.valueToTree(o);
         List<ObjectNode> elements;
         if (node instanceof ObjectNode) {
             elements = new ArrayList<ObjectNode>() {{
@@ -179,7 +200,7 @@ class JsonRenderer {
                     .filter(it -> it instanceof ObjectNode)
                     .map(it -> (ObjectNode) it).collect(Collectors.toList());
         } else {
-            JsonNode element = mapper().valueToTree(o);
+            JsonNode element = objectMapper.valueToTree(o);
             json = element.isArray()
                     ? StreamSupport.stream(element.spliterator(), false)
                     .filter(it -> it instanceof ObjectNode)

@@ -231,15 +231,9 @@ public class Jackson5 {
 
     private final JsonRenderer jsonRenderer;
 
-    /**
-     * Default constructor
-     */
-    protected Jackson5() {
-        this.jsonRenderer = new JsonRenderer();
-    }
     protected Jackson5(String name, ObjectMapper objectMapper, boolean pretty) {
         mappers.put(name, objectMapper);
-        this.jsonRenderer = new JsonRenderer(name, pretty);
+        this.jsonRenderer = new JsonRenderer(objectMapper, pretty);
     }
     protected Jackson5(ObjectMapper objectMapper, boolean pretty) {
         this("", objectMapper, pretty);
@@ -251,10 +245,16 @@ public class Jackson5 {
         this(name, objectMapper, false);
     }
     protected Jackson5(String name, boolean pretty) {
-        this(name, mapper(), pretty);
+        this(name, configure(new ObjectMapper()), pretty);
     }
     protected Jackson5(String name) {
         this(name, false);
+    }
+    /**
+     * Default constructor
+     */
+    protected Jackson5() {
+        this(configure(new ObjectMapper()), false);
     }
 
     /**
@@ -273,7 +273,7 @@ public class Jackson5 {
      * @return JsonNode
      */
     public JsonNode json(Object o, Structurable struct) {
-        return jsonRenderer.json(o, struct.view(), struct.select(), struct.drop());
+        return jsonRenderer.json(o, struct);
     }
 
     /**
@@ -295,6 +295,6 @@ public class Jackson5 {
      * @throws JsonProcessingException If errors occur during serialization
      */
     public String render(Object o, Structurable struct) throws JsonProcessingException {
-        return jsonRenderer.render(o, struct.view(), struct.select(), struct.drop());
+        return jsonRenderer.render(o, struct);
     }
 }

@@ -1,10 +1,10 @@
-package io.oreto.jackson.test;
+package io.oreto.jackson;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.oreto.jackson.Csv;
-import io.oreto.jackson.latte.IO;
-import io.oreto.jackson.latte.Lists;
+import io.oreto.jackson.IO;
+import io.oreto.jackson.Lists;
 import org.junit.jupiter.api.Test;
 
 import javax.naming.NameNotFoundException;

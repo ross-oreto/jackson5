@@ -1,4 +1,4 @@
-package io.oreto.jackson.test.pojos;
+package io.oreto.jackson.pojos;
 
 import java.util.ArrayList;
 import java.util.Collections;

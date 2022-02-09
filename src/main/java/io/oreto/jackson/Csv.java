@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.MappingIterator;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvParser;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
-import io.oreto.jackson.latte.IO;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,6 +28,11 @@ public class Csv<T> {
         }
     }
 
+    /**
+     * Convert CSV text to a List of Maps, in other words row objects
+     * @param csv The csv String
+     * @return List<Map<String, ?>> rows
+     */
     public static List<Map<String, ?>> from(String csv) {
         MappingIterator<Map<String, ?>> mappingIterator = null;
         try {
@@ -45,6 +49,11 @@ public class Csv<T> {
         return mappingIterator == null ? null : from(mappingIterator);
     }
 
+    /**
+     * Convert CSV File to a List of Maps, in other words row objects
+     * @param csv The csv File
+     * @return List<Map<String, ?>> rows
+     */
     public static List<Map<String, ?>> from(File csv) {
         return from(IO.fileText(csv).orElse(""));
     }
@@ -108,6 +117,13 @@ public class Csv<T> {
        return list.stream().map(it -> flatten(it, csvSchemaBuilder, options)).collect(Collectors.toList());
     }
 
+    /**
+     * Convert row map objects into csv String
+     * @param o The List of Maps
+     * @param options Options representing how the csv is rendered
+     * @return The csv String
+     * @throws IOException If there is an issue writing CSV
+     */
     public static String asCsv(List<Map<String, Object>> o, Options options)
             throws IOException {
         CsvSchema.Builder csvSchemaBuilder = CsvSchema.builder();
@@ -131,10 +147,23 @@ public class Csv<T> {
                 .writeValueAsString(Jackson5.asJson(o));
     }
 
+    /**
+     * Convert row map objects into csv String
+     * @param o The List of Maps
+     * @return The csv String
+     * @throws IOException If there is an issue writing CSV
+     */
     public static String asCsv(List<Map<String, Object>> o) throws IOException {
         return asCsv(o, Options.header());
     }
 
+    /**
+     * Convert row objects into csv String
+     * @param o The List of object
+     * @param options Options representing how the csv is rendered
+     * @return The csv String
+     * @throws IOException If there is an issue writing CSV
+     */
     public static String toCsv(Iterable<?> o, Options options) throws IOException {
         Iterator<?> iterator = o.iterator();
         if (iterator.hasNext()) {
@@ -149,13 +178,31 @@ public class Csv<T> {
                 .collect(Collectors.toList()), options);
     }
 
+    /**
+     * Convert row objects into csv String
+     * @param o The List of object
+     * @return The csv String
+     * @throws IOException If there is an issue writing CSV
+     */
     public static String toCsv(Iterable<?> o) throws IOException {
        return toCsv(o, Options.header());
     }
 
+    /**
+     * Create Csv object from data list
+     * @param data An iterable data list representing the CSV rows
+     * @param options Options representing how the csv is rendered
+     * @return The Csv object
+     */
     public static <T> Csv<T> of(Iterable<T> data, Options options) {
        return new Csv<>(data, options);
     }
+
+    /**
+     * Create Csv object from data list
+     * @param data An iterable data list representing the CSV rows
+     * @return The Csv object
+     */
     public static <T> Csv<T> of(Iterable<T> data) {
         return new Csv<>(data);
     }
@@ -172,6 +219,11 @@ public class Csv<T> {
         this.options = Options.header();
     }
 
+    /**
+     * Write CSV String
+     * @return CSV String
+     * @throws IOException If there is an issue writing CSV
+     */
     public String writeString() throws IOException {
         List<Map<String, Object>> o = StreamSupport.stream(data.spliterator(), false)
                 .map(Jackson5::asMap).collect(Collectors.toList());
@@ -179,19 +231,38 @@ public class Csv<T> {
         return Csv.asCsv(o, options);
     }
 
+    /**
+     * Write CSV String to a file
+     * @throws IOException If there is an issue writing CSV
+     */
     public void write(Path path) throws IOException {
         Files.write(path, writeString().getBytes(StandardCharsets.UTF_8));
     }
+    /**
+     * Write CSV String to a file
+     * @throws IOException If there is an issue writing CSV
+     */
     public void write(File file) throws IOException {
         write(file.toPath());
     }
+    /**
+     * Write CSV String to a file
+     * @throws IOException If there is an issue writing CSV
+     */
     public void write(String path, String... more) throws IOException {
         write(Paths.get(path, more));
     }
+    /**
+     * Write CSV String to specified PrintWriter
+     * @throws IOException If there is an issue writing CSV
+     */
     public void write(PrintWriter printWriter) throws IOException {
         printWriter.write(writeString());
     }
 
+    /**
+     * Options describing how the csv is formed/structured.
+     */
     public static class Options {
         public static Options header() {
             return new Options();
