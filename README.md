@@ -32,4 +32,8 @@ jackson5.render(data, Fields.Exclude("name"))
 For more advanced examples, look at src/test/io/oreto/jackson/Jackson5Test
 
 Jackson 5 also support CSV. src/test/io/oreto/jackson/CsvTest
-
+``` 
+List<Map<String, Object>> elements = new ArrayList<>();
+elements.add(new LinkedHashMap<String, Object>(){{ put("name", "ross"); put("address", "Nashville, TN"); }});
+String csv = Csv.asCsv(elements);
+```
