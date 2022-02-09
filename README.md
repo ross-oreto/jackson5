@@ -26,7 +26,7 @@ String json = jackson5.render(data, "{ name }");
 ```
 - exclude the name field.
 ```
-jackson5.render(data, Fields.Drop("name"))
+jackson5.render(data, Fields.Exclude("name"))
 ```
 
 For more advanced examples, look at src/test/io/oreto/jackson/Jackson5Test
