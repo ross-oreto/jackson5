@@ -83,12 +83,12 @@ class JsonRenderer {
     /**
      * Render JSON String
      * @param o Object to serialize to JSON
-     * @param structurable Structure representing the object fields which are serialized
+     * @param fields Fields representing the object fields which are serialized
      * @return The JSON String
      * @throws JsonProcessingException
      */
-    public String render(Object o, Structurable structurable) throws JsonProcessingException {
-        return asString(json(o, structurable), pretty);
+    public String render(Object o, IFields fields) throws JsonProcessingException {
+        return asString(json(o, fields), pretty);
     }
 
     /**
@@ -97,8 +97,8 @@ class JsonRenderer {
      * @return JsonNode
      */
     public JsonNode json(Object o)  {
-        if (o instanceof Structurable) {
-            return json(o, (Structurable) o);
+        if (o instanceof IFields) {
+            return json(o, (IFields) o);
         }
         return objectMapper.valueToTree(o);
     }
@@ -106,23 +106,23 @@ class JsonRenderer {
     /**
      * Convert Object to a JsonNode object
      * @param o Object to convert
-     * @param structurable Structure representing the object fields which are converted
+     * @param fields Fields representing the object fields which are converted
      * @return JsonNode
      */
-    public JsonNode json(Object o, Structurable structurable) {
-        // if view is present, use the specified view.
-        if (Str.isNotBlank(structurable.view())) {
-            o = useView(o, structurable.view());
+    public JsonNode json(Object o, IFields fields) {
+        // if root is present, use the specified root.
+        if (Str.isNotBlank(fields.root())) {
+            o = useRoot(o, fields.root());
         }
-        // if there are no drops or selects just render normally
-        if ((Str.isBlank(structurable.drop()) || o == null) && Str.isBlank(structurable.select())) {
+        // if there are no includes or excludes just render normally
+        if ((Str.isBlank(fields.exclude()) || o == null) && Str.isBlank(fields.include())) {
             return o instanceof ObjectNode ? (JsonNode) o : objectMapper.valueToTree(o);
         } else {
             List<ObjectNode> json = initTree(o);
 
-            if (Str.isNotBlank(structurable.select()) && Str.isNotBlank(structurable.drop())) {
+            if (Str.isNotBlank(fields.include()) && Str.isNotBlank(fields.exclude())) {
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
-                walk(json, "", picker(structurable.select()), copy);
+                walk(json, "", picker(fields.include()), copy);
 
                 json = copy instanceof ObjectNode
                         ? new ArrayList<ObjectNode>() {{ add((ObjectNode) copy); }}
@@ -131,14 +131,14 @@ class JsonRenderer {
                         .map(it -> (ObjectNode) it)
                         .collect(Collectors.toList());
 
-                track(json, "", picker(structurable.drop()), null);
+                track(json, "", picker(fields.exclude()), null);
                 return json.size() == 1 ? json.get(0) : toArrayNode(json);
-            } else if (Str.isNotBlank(structurable.select())) {
+            } else if (Str.isNotBlank(fields.include())) {
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
-                walk(json, "", picker(structurable.select()), copy);
+                walk(json, "", picker(fields.include()), copy);
                 return copy;
             } else {
-                track(json, "", picker(structurable.drop()), null);
+                track(json, "", picker(fields.exclude()), null);
                 return json.size() == 1 ? json.get(0) : toArrayNode(json);
             }
         }
@@ -151,7 +151,7 @@ class JsonRenderer {
         return arrayNode;
     }
 
-    private Object useView(Object o, String view) {
+    private Object useRoot(Object o, String root) {
         List<JsonNode> picks = new ArrayList<>();
 
         Object node = objectMapper.valueToTree(o);
@@ -164,19 +164,19 @@ class JsonRenderer {
             elements = StreamSupport.stream(((ArrayNode) node).spliterator(), false)
                     .filter(it -> it instanceof ObjectNode)
                     .map(it -> (ObjectNode) it).collect(Collectors.toList());
-            String str = view.trim();
+            String str = root.trim();
             if (str.startsWith("[") && str.endsWith("]")) {
                 String[] range = str.subSequence(1, str.length() - 1).toString().split(":");
                 int start = Str.toInteger(range[0]).orElse(1) - 1;
                 int end = range.length > 1 ? Str.toInteger(range[1]).orElse(start) : start;
                 o = end - start < 2 ? elements.get(start) : elements.subList(start, end);
-                view = null;
+                root = null;
             }
         } else {
             elements = new ArrayList<>();
         }
-        if (Objects.nonNull(view))
-            track(elements, "", picker(view), picks);
+        if (Objects.nonNull(root))
+            track(elements, "", picker(root), picks);
         int size = picks.size();
         if (size == 1) o = picks.get(0);
         else if (size > 1) {

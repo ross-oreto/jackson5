@@ -270,10 +270,10 @@ public class Jackson5 {
     /**
      * Convert Object to a JsonNode object
      * @param o Object to convert
-     * @param struct Structure representing the object fields which are converted
+     * @param struct Fields representing the object fields which are converted
      * @return JsonNode
      */
-    public JsonNode json(Object o, Structurable struct) {
+    public JsonNode json(Object o, IFields struct) {
         return jsonRenderer.json(o, struct);
     }
 
@@ -284,7 +284,7 @@ public class Jackson5 {
      * @return JsonNode
      */
     public JsonNode json(Object o, String fields) {
-        return jsonRenderer.json(o, Structure.of(fields));
+        return jsonRenderer.json(o, Fields.Include(fields));
     }
 
     /**
@@ -301,11 +301,11 @@ public class Jackson5 {
      *
      * Serialize Object as JSON string
      * @param o The object to serialize
-     * @param struct Structure representing the object fields which are serialized
+     * @param struct Fields representing the object fields which are serialized
      * @return JSON String representing the Object o
      * @throws JsonProcessingException If errors occur during serialization
      */
-    public String render(Object o, Structurable struct) throws JsonProcessingException {
+    public String render(Object o, IFields struct) throws JsonProcessingException {
         return jsonRenderer.render(o, struct);
     }
 
@@ -317,6 +317,6 @@ public class Jackson5 {
      * @throws JsonProcessingException If errors occur during serialization
      */
     public String render(Object o, String fields) throws JsonProcessingException {
-        return jsonRenderer.render(o, Structure.of(fields));
+        return jsonRenderer.render(o, Fields.Include(fields));
     }
 }

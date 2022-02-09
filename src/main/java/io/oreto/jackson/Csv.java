@@ -59,16 +59,16 @@ public class Csv<T> {
     }
 
     private static boolean selected(String name, Options options) {
-        if (options.select == null && options.drop == null)
+        if (options.include == null && options.exclude == null)
             return true;
-        else if (Objects.nonNull(options.select)) {
-            if (Arrays.binarySearch(options.select, name) >= 0)
+        else if (Objects.nonNull(options.include)) {
+            if (Arrays.binarySearch(options.include, name) >= 0)
                 return true;
             else if (name.contains(".")
-                    && Arrays.binarySearch(options.select, name.substring(0, name.lastIndexOf('.'))) >= 0)
+                    && Arrays.binarySearch(options.include, name.substring(0, name.lastIndexOf('.'))) >= 0)
                 return true;
         }
-        return (Objects.nonNull(options.drop) && Arrays.binarySearch(options.drop, name) < 0);
+        return (Objects.nonNull(options.exclude) && Arrays.binarySearch(options.exclude, name) < 0);
     }
 
     @SuppressWarnings("unchecked")
@@ -273,8 +273,8 @@ public class Csv<T> {
 
         private boolean header = true;
         private boolean withoutQuote;
-        private String[] select;
-        private String[] drop;
+        private String[] include;
+        private String[] exclude;
         private String[] order = new String[]{};
         private Boolean asc = null;
 
@@ -290,15 +290,15 @@ public class Csv<T> {
             return this;
         }
 
-        public Options select(String... select) {
-            this.select = select;
-            Arrays.sort(this.select);
+        public Options include(String... include) {
+            this.include = include;
+            Arrays.sort(this.include);
             return this;
         }
 
-        public Options drop(String... drop) {
-            this.drop = drop;
-            Arrays.sort(this.drop);
+        public Options exclude(String... exclude) {
+            this.exclude = exclude;
+            Arrays.sort(this.exclude);
             return this;
         }
 

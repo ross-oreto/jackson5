@@ -2,9 +2,6 @@ package io.oreto.jackson;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.oreto.jackson.Csv;
-import io.oreto.jackson.IO;
-import io.oreto.jackson.Lists;
 import org.junit.jupiter.api.Test;
 
 import javax.naming.NameNotFoundException;
@@ -69,7 +66,7 @@ public class CsvTest {
     public void writer1() throws IOException {
         List<Person> elements = new ArrayList<>();
         elements.add(new Person("ross", "Nashville, TN"));
-        String csv = Csv.of(elements, Csv.Options.header().drop("name")).writeString();
+        String csv = Csv.of(elements, Csv.Options.header().exclude("name")).writeString();
         assertEquals("address\n" +
                 "\"Nashville, TN\"\n", csv);
     }
@@ -99,11 +96,11 @@ public class CsvTest {
         List<Person2> elements = new ArrayList<>();
         elements.add(new Person2("ross", "Nashville, TN")
                 .withChild(new Person("Brandon", "Dickerson")));
-        String csv = Csv.of(elements, Csv.Options.header().drop("child.address")).writeString();
+        String csv = Csv.of(elements, Csv.Options.header().exclude("child.address")).writeString();
         assertEquals("name,address,child.name\n" +
                 "ross,\"Nashville, TN\",Brandon\n", csv);
 
-        csv = Csv.of(elements, Csv.Options.header().drop("child")).writeString();
+        csv = Csv.of(elements, Csv.Options.header().exclude("child")).writeString();
         assertEquals("name,address\n" +
                 "ross,\"Nashville, TN\"\n", csv);
     }
@@ -114,7 +111,7 @@ public class CsvTest {
         elements.add(new Person2("ross", "Nashville, TN")
                 .withChild(new Person("Brandon", "Dickerson")));
 
-        String csv = Csv.of(elements, Csv.Options.header().select("child")).writeString();
+        String csv = Csv.of(elements, Csv.Options.header().include("child")).writeString();
         assertEquals("name,address\n" +
                 "Brandon,Dickerson\n", csv);
     }
