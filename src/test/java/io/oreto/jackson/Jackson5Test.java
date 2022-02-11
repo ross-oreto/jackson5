@@ -14,6 +14,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class Jackson5Test {
 
     @Test
+    public void simple() throws JsonProcessingException {
+        Jackson5 jackson5 = Jackson5.build();
+        String json = jackson5.render(new HashMap<String, String>(){{ put("test", "t1"); }});
+        assertEquals("{\"test\":\"t1\"}", json);
+    }
+
+    @Test
     public void test1() throws JsonProcessingException {
         Jackson5 jackson5 = Jackson5.build();
 
@@ -126,9 +133,28 @@ public class Jackson5Test {
     }
 
     @Test
-    public void simple() throws JsonProcessingException {
+    public void test8() throws JsonProcessingException {
+        Pojo pojo = new Pojo("test2", "b")
+                .withPojos(new Pojo1("d").withPojos("7", "8", "9", "10", "11", "12")
+                        , new Pojo1("e")
+                        , new Pojo1("f"));
+
         Jackson5 jackson5 = Jackson5.build();
-        String json = jackson5.render(new HashMap<String, String>(){{ put("test", "t1"); }});
-        assertEquals("{\"test\":\"t1\"}", json);
+        String json = jackson5.render(pojo, Fields.Include("name pojos[1] { name pojos[2:4]{name} }"));
+        assertEquals("{\"name\":\"test2\",\"pojos\":[{\"name\":\"d\",\"pojos\":[{\"name\":\"8\"},{\"name\":\"9\"},{\"name\":\"10\"}]}]}"
+                ,json);
+    }
+
+    @Test
+    public void test9() throws JsonProcessingException {
+        Pojo pojo = new Pojo("test2", "b")
+                .withPojos(new Pojo1("d").withPojos("7", "8", "9", "10", "11", "12")
+                        , new Pojo1("e", "foo")
+                        , new Pojo1("f", "bar"));
+
+        Jackson5 jackson5 = Jackson5.build();
+        String json = jackson5.render(pojo, Fields.Exclude("name pojos[1] { name pojos[2:4] }"));
+        assertEquals("{\"description\":\"b\",\"pojos\":[{\"description\":null,\"pojos\":[{\"name\":\"7\"},{\"name\":\"11\"},{\"name\":\"12\"}]},{\"name\":\"e\",\"description\":\"foo\",\"pojos\":[]},{\"name\":\"f\",\"description\":\"bar\",\"pojos\":[]}]}"
+                ,json);
     }
 }

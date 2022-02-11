@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static io.oreto.jackson.Util.IO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CsvTest {

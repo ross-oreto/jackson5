@@ -23,6 +23,8 @@ public class Fields implements IFields {
     private String include;
     private String exclude;
 
+
+    // fluent setters
     public Fields root(String root) {
         this.root = root;
         return this;
@@ -36,16 +38,25 @@ public class Fields implements IFields {
         return this;
     }
 
+    /**
+     * @return The field to set as the tree root
+     */
     @Override
     public String root() {
         return root;
     }
 
+    /**
+     * @return The fields to include in the serialization
+     */
     @Override
     public String include() {
         return include;
     }
 
+    /**
+     * @return The fields to exclude in the serialization
+     */
     @Override
     public String exclude() {
         return exclude;

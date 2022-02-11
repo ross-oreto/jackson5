@@ -10,8 +10,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.StreamSupport;
+
+import static io.oreto.jackson.Util.MultiString;
+import static io.oreto.jackson.Util.Str;
 
 class JsonRenderer {
     private final ObjectMapper objectMapper;
@@ -104,6 +105,24 @@ class JsonRenderer {
     }
 
     /**
+     * Provides cleanup to reduce the number of Json objects and help GC
+     * This is helpful when we are using inclusions and create new json nodes in the process.
+     * @param json A list of json object nodes.
+     */
+    private void clearTree(List<ObjectNode> json) {
+        json.forEach(this::clearTree);
+        json.clear();
+    }
+    private void clearTree(JsonNode jsonNode) {
+        jsonNode.forEach(this::clearTree);
+        if (jsonNode instanceof ObjectNode) {
+            ((ObjectNode) jsonNode).removeAll();
+        } else if (jsonNode instanceof ArrayNode) {
+            ((ArrayNode) jsonNode).removeAll();
+        }
+    }
+
+    /**
      * Convert Object to a JsonNode object
      * @param o Object to convert
      * @param fields Fields representing the object fields which are converted
@@ -114,30 +133,37 @@ class JsonRenderer {
         if (Str.isNotBlank(fields.root())) {
             o = useRoot(o, fields.root());
         }
+        boolean inclusions = Str.isNotBlank(fields.include());
+        boolean exclusions = Str.isNotBlank(fields.exclude());
         // if there are no includes or excludes just render normally
-        if ((Str.isBlank(fields.exclude()) || o == null) && Str.isBlank(fields.include())) {
+        if ((!exclusions || o == null) && !inclusions) {
             return o instanceof ObjectNode ? (JsonNode) o : objectMapper.valueToTree(o);
         } else {
             List<ObjectNode> json = initTree(o);
-
-            if (Str.isNotBlank(fields.include()) && Str.isNotBlank(fields.exclude())) {
+            if (inclusions && exclusions) {
+                // both inclusions and exclusions
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
                 walk(json, "", picker(fields.include()), copy);
-
-                json = copy instanceof ObjectNode
-                        ? new ArrayList<ObjectNode>() {{ add((ObjectNode) copy); }}
-                        : StreamSupport.stream((copy).spliterator(), false)
-                        .filter(it -> it instanceof ObjectNode)
-                        .map(it -> (ObjectNode) it)
-                        .collect(Collectors.toList());
-
+                clearTree(json);
+                json = new ArrayList<>();
+                if (copy instanceof ObjectNode) {
+                   json.add((ObjectNode) copy);
+                } else {
+                   for (JsonNode jsonNode : copy) {
+                       if (jsonNode instanceof ObjectNode)
+                           json.add((ObjectNode) jsonNode);
+                   }
+                }
                 track(json, "", picker(fields.exclude()), null);
                 return json.size() == 1 ? json.get(0) : toArrayNode(json);
-            } else if (Str.isNotBlank(fields.include())) {
+            } else if (inclusions) {
+                // only inclusions
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
                 walk(json, "", picker(fields.include()), copy);
+                clearTree(json);
                 return copy;
             } else {
+                // only exclusions
                 track(json, "", picker(fields.exclude()), null);
                 return json.size() == 1 ? json.get(0) : toArrayNode(json);
             }
@@ -155,15 +181,14 @@ class JsonRenderer {
         List<JsonNode> picks = new ArrayList<>();
 
         Object node = objectMapper.valueToTree(o);
-        List<ObjectNode> elements;
+        List<ObjectNode> elements = new ArrayList<>();
         if (node instanceof ObjectNode) {
-            elements = new ArrayList<ObjectNode>() {{
-                add((ObjectNode) node);
-            }};
+            elements.add((ObjectNode) node);
         } else if (node instanceof ArrayNode) {
-            elements = StreamSupport.stream(((ArrayNode) node).spliterator(), false)
-                    .filter(it -> it instanceof ObjectNode)
-                    .map(it -> (ObjectNode) it).collect(Collectors.toList());
+            for (JsonNode jsonNode : ((ArrayNode) node)) {
+                if (jsonNode instanceof ObjectNode)
+                    elements.add((ObjectNode) jsonNode);
+            }
             String str = root.trim();
             if (str.startsWith("[") && str.endsWith("]")) {
                 String[] range = str.subSequence(1, str.length() - 1).toString().split(":");
@@ -188,26 +213,26 @@ class JsonRenderer {
     }
 
     private List<ObjectNode> initTree(Object o) {
-        List<ObjectNode> json;
+        List<ObjectNode> json = new ArrayList<>();
         if (o instanceof ObjectNode) {
             ObjectNode element = (ObjectNode) o;
-            json = new ArrayList<ObjectNode>() {{
-                add(element);
-            }};
+            json.add(element);
         } else if(o instanceof ArrayNode) {
             ArrayNode element = (ArrayNode) o;
-            json = StreamSupport.stream(element.spliterator(), false)
-                    .filter(it -> it instanceof ObjectNode)
-                    .map(it -> (ObjectNode) it).collect(Collectors.toList());
+            for (JsonNode jsonNode : element) {
+                if (jsonNode instanceof ObjectNode)
+                    json.add((ObjectNode) jsonNode);
+            }
         } else {
             JsonNode element = objectMapper.valueToTree(o);
-            json = element.isArray()
-                    ? StreamSupport.stream(element.spliterator(), false)
-                    .filter(it -> it instanceof ObjectNode)
-                    .map(it -> (ObjectNode) it).collect(Collectors.toList())
-                    : new ArrayList<ObjectNode>() {{
-                add((ObjectNode) element);
-            }};
+            if (element.isArray()) {
+                for (JsonNode jsonNode : element) {
+                    if (jsonNode instanceof ObjectNode)
+                        json.add((ObjectNode) jsonNode);
+                }
+            } else {
+               json.add((ObjectNode) element);
+            }
         }
         return json;
     }
@@ -269,8 +294,7 @@ class JsonRenderer {
     }
 
     protected String open(StringBuilder sb, Stack<String> address, MultiString<String> picks, String currentAddress) {
-        List<String> fields = Arrays.stream(sb.toString().trim().split("[ \n\r]"))
-                .collect(Collectors.toList());
+        List<String> fields = Arrays.asList(sb.toString().trim().split("[ \n\r]"));
         int size = fields.size();
         if (size > 1) {
             for (String field : fields.subList(0, size - 1)) picks.put(currentAddress, field.trim());
@@ -340,9 +364,9 @@ class JsonRenderer {
                         ArrayNode jsonArray = (ArrayNode) element;
                         if (subset == null)
                             jsonArray.forEach(it -> newNodes.add((ObjectNode) it));
-                        else
-                            subset.getValue().size(jsonArray.size()).stream()
-                                    .forEach(it -> newNodes.add((ObjectNode) jsonArray.get(it)));
+                        else {
+                            subset.getValue().size(jsonArray.size()).apply(newNodes, jsonArray);
+                        }
                     } else if (element instanceof ObjectNode) {
                         newNodes.add((ObjectNode) element);
                     }
@@ -351,9 +375,9 @@ class JsonRenderer {
                     if (element instanceof ArrayNode && subset != null) {
                         ArrayNode jsonArray = (ArrayNode) node.get(property);
                         if (picks == null)
-                            subset.getValue().size(jsonArray.size()).streamStart().forEach(jsonArray::remove);
+                            subset.getValue().size(jsonArray.size()).remove(jsonArray);
                         else
-                            subset.getValue().size(jsonArray.size()).streamStart().forEach(it -> picks.add(jsonArray.get(it)));
+                            subset.getValue().size(jsonArray.size()).add(picks, jsonArray);
                     } else {
                         if (picks == null)
                             node.remove(property);
@@ -393,8 +417,7 @@ class JsonRenderer {
             , String property, String address) {
 
         if (subset == null) node.forEach(it -> newNodes.add((ObjectNode) it));
-        else subset.getValue().size(node.size()).stream()
-                .forEach(it -> newNodes.add((ObjectNode) node.get(it)));
+        else subset.getValue().size(node.size()).apply(newNodes, node);
 
         for(JsonNode jsonNode : copy) {
             if (!jsonNode.has(property)) {
@@ -411,8 +434,7 @@ class JsonRenderer {
             , Map.Entry<String, Subset> subset, List<ObjectNode> newNodes
             , String property, String address) {
         if (subset == null) node.forEach(it -> newNodes.add((ObjectNode) it));
-        else subset.getValue().size(node.size()).stream()
-                .forEach(it -> newNodes.add((ObjectNode) node.get(it)));
+        else subset.getValue().size(node.size()).apply(newNodes, node);
 
         ArrayNode newArray = (ArrayNode) reader().createArrayNode();
         if (copy.has(property)) {
@@ -432,9 +454,7 @@ class JsonRenderer {
                         if (element instanceof ArrayNode && subset != null) {
                             ArrayNode jsonArray = (ArrayNode) element;
                             ArrayNode newArray = (ArrayNode) reader().createArrayNode();
-                            for (int it : subset.getValue().size(jsonArray.size()).stream().toArray()) {
-                                newArray.add(jsonArray.get(it));
-                            }
+                            subset.getValue().size(jsonArray.size()).apply(newArray, jsonArray);
                             return new AbstractMap.SimpleEntry<String, JsonNode>(property, newArray);
                         } else
                             return new AbstractMap.SimpleEntry<>(property, element);
@@ -489,12 +509,6 @@ class JsonRenderer {
         elements.forEach(it -> addElement(jsonObject, it.getKey(), it.getValue()));
     }
 
-    private void addElement(ArrayNode jsonArray, String property, JsonNode element) {
-        ObjectNode jsonObject = (ObjectNode) reader().createObjectNode();
-        jsonObject.set(property, element);
-        jsonArray.add(jsonObject);
-    }
-
     private void addElement(ObjectNode jsonObject, String property, JsonNode element) {
         if (jsonObject.has(property) && element instanceof ArrayNode)
             ((ArrayNode)jsonObject.get(property)).addAll((ArrayNode) element);
@@ -503,55 +517,46 @@ class JsonRenderer {
     }
 
     static class Subset {
-        public static Subset of(Integer a, Integer b) { return new Subset().start(a).end(b); }
-        public static Subset of(Integer a) { return new Subset().start(a).end(a); }
-        public static Subset of() { return new Subset(); }
+        public static Subset of(Integer a, Integer b) { return new Subset(a, b); }
+        public static Subset of(Integer a) { return new Subset(a, a); }
 
-        private Integer start, end, max, min;
+        private Integer start, max;
+        private final Integer end, min;
 
-        protected Subset() {
-            start = end = null;
+        private Subset(Integer a, Integer b) {
+            start(a);
+            end = b;
             min = max = 0;
         }
 
-        public Subset start(Integer i) { this.start = i == null ? min : i; return this; }
-        public Subset end(Integer i) { this.end = i; return this; }
+        private void start(Integer i) { this.start = i == null ? min : i; }
+
         public Subset size(Integer i) {
             this.max = i - 1; return this;
         }
-        public Subset min(Integer i) { this.min = i; return this; }
 
-        public long size() { return stream().count(); }
-        public long complimentSize() { return compliment().count(); }
-
-        public boolean in(Integer i) {
-            return i >= start && i <= end;
+        public void apply(List<ObjectNode> newNodes, ArrayNode node) {
+            for (int i = computeStart(); i < computeEnd() + 1; i++) {
+                newNodes.add((ObjectNode) node.get(i));
+            }
+        }
+        public void apply(ArrayNode newArray, ArrayNode node) {
+            for (int i = computeStart(); i < computeEnd() + 1; i++) {
+                newArray.add(node.get(i));
+            }
         }
 
-        public boolean notIn(Integer i) { return !in(i); }
-
-        public IntStream stream() {
-            return IntStream.range(computeStart(), computeEnd() + 1);
-        }
-        public IntStream streamStart() {
+        public void remove(ArrayNode jsonArray) {
             int start = computeStart();
-            return stream().map(i -> start);
+            for (int i = computeStart(); i < computeEnd() + 1; i++) {
+                jsonArray.remove(start);
+            }
         }
-        public IntStream streamReversed() {
-            return stream().boxed().sorted(Collections.reverseOrder()).mapToInt(Integer::intValue);
-        }
-        public IntStream compliment() {
-            return IntStream.concat(IntStream.range(min, computeStart()), IntStream.range(computeEnd() + 1, max + 1));
-        }
-        public IntStream complimentStart() {
-            final int[] count = {min - 1};
-            return compliment().map(i -> {
-                count[0]++;
-                return i - count[0];
-            });
-        }
-        public IntStream complimentReversed() {
-            return compliment().boxed().sorted(Collections.reverseOrder()).mapToInt(Integer::intValue);
+        public void add(List<JsonNode> newNodes, ArrayNode node) {
+            int start = computeStart();
+            for (int i = computeStart(); i < computeEnd() + 1; i++) {
+                newNodes.add(node.get(start));
+            }
         }
 
         protected int computeStart() { return start < min ? min : start; }

@@ -17,6 +17,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static io.oreto.jackson.Util.IO;
+
 public class Csv<T> {
 
     private static List<Map<String, ?>> from(MappingIterator<Map<String, ?>> mappingIterator) {
