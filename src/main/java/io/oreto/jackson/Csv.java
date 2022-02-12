@@ -57,7 +57,7 @@ public class Csv<T> {
      * @return List<Map<String, ?>> rows
      */
     public static List<Map<String, ?>> from(File csv) {
-        return from(IO.fileText(csv).orElse(""));
+        return from(IO.fileText(csv).orElse(Util.Str.EMPTY));
     }
 
     private static boolean selected(String name, Options options) {

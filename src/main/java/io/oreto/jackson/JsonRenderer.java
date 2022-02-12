@@ -15,7 +15,7 @@ import static io.oreto.jackson.Util.MultiString;
 import static io.oreto.jackson.Util.Str;
 
 class JsonRenderer {
-    private final ObjectMapper objectMapper;
+    ObjectMapper objectMapper;
     private boolean pretty;
 
     /**
@@ -23,7 +23,7 @@ class JsonRenderer {
      * @param objectMapper ObjectMapper to use for this renderer
      * @param pretty Pretty print json if true
      */
-    public JsonRenderer(ObjectMapper objectMapper, boolean pretty) {
+    JsonRenderer(ObjectMapper objectMapper, boolean pretty) {
         this.objectMapper = objectMapper;
         this.pretty = pretty;
     }
@@ -31,7 +31,7 @@ class JsonRenderer {
     /**
      * @param objectMapper ObjectMapper to use for this renderer
      */
-    public JsonRenderer(ObjectMapper objectMapper) {
+    JsonRenderer(ObjectMapper objectMapper) {
         this(objectMapper, false);
     }
 
@@ -40,7 +40,7 @@ class JsonRenderer {
      * @param pretty Pretty print json if true
      * @return This JsonRenderer
      */
-    public JsonRenderer pretty(boolean pretty) {
+    JsonRenderer pretty(boolean pretty) {
         this.pretty = pretty;
         return this;
     }
@@ -77,7 +77,7 @@ class JsonRenderer {
      * @return The JSON String
      * @throws JsonProcessingException If errors occur during serialization
      */
-    public String render(Object o) throws JsonProcessingException {
+    String render(Object o) throws JsonProcessingException {
         return asString(o, pretty);
     }
 
@@ -88,7 +88,7 @@ class JsonRenderer {
      * @return The JSON String
      * @throws JsonProcessingException If errors occur during serialization
      */
-    public String render(Object o, IFields fields) throws JsonProcessingException {
+    String render(Object o, IFields fields) throws JsonProcessingException {
         return asString(json(o, fields), pretty);
     }
 
@@ -97,7 +97,7 @@ class JsonRenderer {
      * @param o Object to convert
      * @return JsonNode
      */
-    public JsonNode json(Object o)  {
+    JsonNode json(Object o)  {
         if (o instanceof IFields) {
             return json(o, (IFields) o);
         }
@@ -128,7 +128,7 @@ class JsonRenderer {
      * @param fields Fields representing the object fields which are converted
      * @return JsonNode
      */
-    public JsonNode json(Object o, IFields fields) {
+    JsonNode json(Object o, IFields fields) {
         // if root is present, use the specified root.
         if (Str.isNotBlank(fields.root())) {
             o = useRoot(o, fields.root());
@@ -143,7 +143,7 @@ class JsonRenderer {
             if (inclusions && exclusions) {
                 // both inclusions and exclusions
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
-                walk(json, "", picker(fields.include()), copy);
+                walk(json, Str.EMPTY, picker(fields.include()), copy);
                 clearTree(json);
                 json = new ArrayList<>();
                 if (copy instanceof ObjectNode) {
@@ -154,17 +154,17 @@ class JsonRenderer {
                            json.add((ObjectNode) jsonNode);
                    }
                 }
-                track(json, "", picker(fields.exclude()), null);
+                track(json, Str.EMPTY, picker(fields.exclude()), null);
                 return json.size() == 1 ? json.get(0) : toArrayNode(json);
             } else if (inclusions) {
                 // only inclusions
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
-                walk(json, "", picker(fields.include()), copy);
+                walk(json, Str.EMPTY, picker(fields.include()), copy);
                 clearTree(json);
                 return copy;
             } else {
                 // only exclusions
-                track(json, "", picker(fields.exclude()), null);
+                track(json, Str.EMPTY, picker(fields.exclude()), null);
                 return json.size() == 1 ? json.get(0) : toArrayNode(json);
             }
         }
@@ -201,7 +201,7 @@ class JsonRenderer {
             elements = new ArrayList<>();
         }
         if (Objects.nonNull(root))
-            track(elements, "", picker(root), picks);
+            track(elements, Str.EMPTY, picker(root), picks);
         int size = picks.size();
         if (size == 1) o = picks.get(0);
         else if (size > 1) {
@@ -241,7 +241,7 @@ class JsonRenderer {
         MultiString<String> picks = new MultiString<>();
         StringBuilder sb = new StringBuilder();
         Stack<String> address = new Stack<>();
-        String currentAddress = "";
+        String currentAddress = Str.EMPTY;
         int dotted = 0;
 
         int len = dsl.length();
@@ -327,17 +327,17 @@ class JsonRenderer {
 
             String[] range = index.split(":");
             String a = range[0].trim();
-            String b = range.length > 1 ? range[1].trim() : "";
+            String b = range.length > 1 ? range[1].trim() : Str.EMPTY;
             return new AbstractMap.SimpleEntry<>(name
                     , Subset.of(
-                    a.equals("") ? null : Integer.parseInt(a) - 1
-                    , b.equals("") ? null : Integer.parseInt(b) - 1));
+                    a.equals(Str.EMPTY) ? null : Integer.parseInt(a) - 1
+                    , b.equals(Str.EMPTY) ? null : Integer.parseInt(b) - 1));
         }
         return null;
     }
 
     private String resolveAddress(String path, String address) {
-        return "".equals(path) ? address : String.format("%s.%s", path, address);
+        return Str.EMPTY.equals(path) ? address : String.format("%s.%s", path, address);
     }
     private String address(Stack<String> stack) {
         return stack.stream().filter(it-> !it.isEmpty()).collect(Collectors.joining("."));
@@ -517,8 +517,8 @@ class JsonRenderer {
     }
 
     static class Subset {
-        public static Subset of(Integer a, Integer b) { return new Subset(a, b); }
-        public static Subset of(Integer a) { return new Subset(a, a); }
+        static Subset of(Integer a, Integer b) { return new Subset(a, b); }
+        static Subset of(Integer a) { return new Subset(a, a); }
 
         private Integer start, max;
         private final Integer end, min;
@@ -531,35 +531,35 @@ class JsonRenderer {
 
         private void start(Integer i) { this.start = i == null ? min : i; }
 
-        public Subset size(Integer i) {
+        Subset size(Integer i) {
             this.max = i - 1; return this;
         }
 
-        public void apply(List<ObjectNode> newNodes, ArrayNode node) {
+        void apply(List<ObjectNode> newNodes, ArrayNode node) {
             for (int i = computeStart(); i < computeEnd() + 1; i++) {
                 newNodes.add((ObjectNode) node.get(i));
             }
         }
-        public void apply(ArrayNode newArray, ArrayNode node) {
+        void apply(ArrayNode newArray, ArrayNode node) {
             for (int i = computeStart(); i < computeEnd() + 1; i++) {
                 newArray.add(node.get(i));
             }
         }
 
-        public void remove(ArrayNode jsonArray) {
+        void remove(ArrayNode jsonArray) {
             int start = computeStart();
             for (int i = computeStart(); i < computeEnd() + 1; i++) {
                 jsonArray.remove(start);
             }
         }
-        public void add(List<JsonNode> newNodes, ArrayNode node) {
+        void add(List<JsonNode> newNodes, ArrayNode node) {
             int start = computeStart();
             for (int i = computeStart(); i < computeEnd() + 1; i++) {
                 newNodes.add(node.get(start));
             }
         }
 
-        protected int computeStart() { return start < min ? min : start; }
-        protected int computeEnd() { return end == null || end > max ? max : end; }
+        int computeStart() { return start < min ? min : start; }
+        int computeEnd() { return end == null || end > max ? max : end; }
     }
 }

@@ -12,6 +12,8 @@ class Util {
      * String utils class
      */
     static class Str {
+        static String EMPTY = "";
+
         /**
          * Is String s null or empty
          * @param s The string to evaluate

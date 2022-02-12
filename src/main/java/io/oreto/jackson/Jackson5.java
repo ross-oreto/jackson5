@@ -2,134 +2,196 @@ package io.oreto.jackson;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 public class Jackson5 {
-    /**
-     * Build a new Jackson5 Object
-     * @return new Jackson5
-     */
-    public static Jackson5 build() {
-       return new Jackson5();
-    }
+    public static final String DEFAULT_NAME = Util.Str.EMPTY;
+    public static String DEFAULT_DATE_PATTERN = "yyyy-MM-dd";
+    public static String DEFAULT_TIME_PATTERN = "HH:mm:ss";
 
     /**
-     * Build a new Jackson5 Object
+     * Set the default ObjectMapper
      * @param objectMapper Use the supplied ObjectMapper instead of the default one
-     * @param pretty Pretty print json
-     * @return new Jackson5
      */
-    public static Jackson5 build(ObjectMapper objectMapper, boolean pretty) {
-        return new Jackson5(objectMapper, pretty);
+    public static void setDefaultMapper(ObjectMapper objectMapper) {
+        if (jacksons.containsKey(DEFAULT_NAME)) {
+            jacksons.get(DEFAULT_NAME).jsonRenderer.objectMapper = objectMapper;
+        } else {
+            get(DEFAULT_NAME, () -> objectMapper);
+        }
     }
 
     /**
-     * Build a new Jackson5 Object
-     * @param objectMapper Use the supplied ObjectMapper instead of the default one
-     * @return new Jackson5
+     * Set the default date pattern. Only affects the default ObjectMapper
+     * @param datePattern The default date pattern String
      */
-    public static Jackson5 build(ObjectMapper objectMapper) {
-        return new Jackson5(objectMapper);
+    public static void setDefaultDatePattern(String datePattern) {
+        Jackson5.DEFAULT_DATE_PATTERN = datePattern;
+    }
+    /**
+     * Set the default time pattern. Only affects the default ObjectMapper
+     * @param timePattern The default time pattern String
+     */
+    public static void setDefaultTimePattern(String timePattern) {
+        Jackson5.DEFAULT_TIME_PATTERN = timePattern;
     }
 
     /**
-     * Build a new Jackson5 Object
-     * @param name The name of the supplied ObjectMapper
-     * @param objectMapper The ObjectMapper
-     * @param pretty Pretty print json
-     * @return new Jackson5
+     * Get a Jackson5 Object
+     * @param name The name of the Jackson5
+     * @param objectMapperSupplier The ObjectMapper supplier
+     * @return new or existing Jackson5 object with specified name and ObjectMapper
      */
-    public static Jackson5 build(String name, ObjectMapper objectMapper, boolean pretty) {
-        return new Jackson5(name, objectMapper, pretty);
+    public static Jackson5 get(String name, Supplier<ObjectMapper> objectMapperSupplier) {
+        if (jacksons.containsKey(name)) {
+            return jacksons.get(name);
+        } else {
+            Jackson5 jackson5 = new Jackson5(objectMapperSupplier.get());
+            jacksons.put(name, jackson5);
+            return jackson5;
+        }
     }
 
     /**
-     * Build a new Jackson5 Object
-     * @param name The name of the supplied ObjectMapper
-     * @param objectMapper The ObjectMapper
-     * @return new Jackson5
+     * Get a Jackson5 Object
+     * @return new or existing Jackson5 object with specified name
      */
-    public static Jackson5 build(String name, ObjectMapper objectMapper) {
-        return new Jackson5(name, objectMapper);
+    public static Jackson5 get() {
+        return get(DEFAULT_NAME, Jackson5::newObjectMapper);
     }
 
-    /**
-     * Build a new Jackson5 Object
-     * @param name The name of the new ObjectMapper
-     * @param pretty Pretty print json
-     * @return new Jackson5
-     */
-    public static Jackson5 build(String name, boolean pretty) {
-        return new Jackson5(name, pretty);
-    }
-
-    /**
-     * Build a new Jackson5 Object
-     * @param name The name of the new ObjectMapper
-     * @return new Jackson5
-     */
-    public static Jackson5 build(String name) {
-        return new Jackson5(name);
-    }
 
     /**
      * Default configuration of the ObjectMapper
-     * @param mapper ObjectMapper to configure
-     * @return The configured ObjectMapper
+     * @return The new configured ObjectMapper
      */
-    public static ObjectMapper configure(ObjectMapper mapper) {
-        return mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+    public static ObjectMapper newObjectMapper(String datePattern, String dateTimePattern) {
+        return registerTimeModule(new ObjectMapper(), datePattern, dateTimePattern)
+                .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
                 .configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
                 .configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .registerModule(new Jdk8Module())
-                .registerModule(new JavaTimeModule()
-                        .addSerializer(LocalDate.class, new LocalDateSerializer(DateTimeFormatter.ofPattern("yyyy-MM-dd")))
-                        .addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(DateTimeFormatter.ISO_LOCAL_DATE_TIME)))
                 .registerModule(new ParameterNamesModule());
     }
 
+    /**
+     * Register date time patterns with the object mapper and setup serializers/deserializers for them.
+     * @param objectMapper Object mapper to register time patterns on
+     * @param datePattern The pattern of date formats
+     * @param dateTimePattern The pattern of date time formats
+     * @return The ObjectMapper after registration
+     */
+    public static ObjectMapper registerTimeModule(ObjectMapper objectMapper
+            , String datePattern
+            , String dateTimePattern) {
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(datePattern);
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern);
+        DateFormat dateFormat = new SimpleDateFormat(dateTimePattern);
+
+        return objectMapper.registerModule(new JavaTimeModule()
+                .addSerializer(LocalDate.class, new LocalDateSerializer(dateFormatter))
+                .addDeserializer(LocalDate.class, new LocalDateDeserializer(dateFormatter))
+                .addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(dateTimeFormatter))
+                .addDeserializer(LocalDateTime.class, new LocalDateTimeDeserializer(dateTimeFormatter))
+                // java.util.Date
+                .addSerializer(Date.class, new JsonSerializer<Date>() {
+                    @Override
+                    public void serialize(Date value, JsonGenerator gen, SerializerProvider serializers)
+                            throws IOException {
+                        gen.writeString(dateFormat.format(value));
+                    }
+                })
+                .addDeserializer(Date.class, new JsonDeserializer<Date>() {
+                    @Override
+                    public Date deserialize(JsonParser p, DeserializationContext ctxt)
+                            throws IOException {
+                        try {
+                            return dateFormat.parse(p.getText());
+                        } catch (ParseException e) {
+                            throw new IOException(e);
+                        }
+                    }
+                })
+                // java.sql.Date
+                .addSerializer(java.sql.Date.class, new JsonSerializer<java.sql.Date>() {
+                    @Override
+                    public void serialize(java.sql.Date value
+                            , JsonGenerator gen
+                            , SerializerProvider serializers) throws IOException {
+                        gen.writeString(dateFormat.format(value));
+                    }
+                })
+                .addDeserializer(java.sql.Date.class, new JsonDeserializer<java.sql.Date>() {
+                    @Override
+                    public java.sql.Date deserialize(JsonParser p, DeserializationContext ctxt)
+                            throws IOException {
+                        try {
+                            return new java.sql.Date(dateFormat.parse(p.getText()).getTime());
+                        } catch (ParseException e) {
+                            throw new IOException(e);
+                        }
+                    }
+                })
+       );
+    }
+
+    /**
+     * Create a new ObjectMapper using the supplied date pattern string.
+     * @param datePattern Pattern string representing the date.
+     * @return The new ObjectMapper
+     */
+    public static ObjectMapper newObjectMapper(String datePattern) {
+       return newObjectMapper(datePattern, String.format("%s %s", datePattern, DEFAULT_TIME_PATTERN));
+    }
+    /**
+     * Create a new ObjectMapper using default settings
+     * @return The new ObjectMapper
+     */
+    public static ObjectMapper newObjectMapper() {
+        return newObjectMapper(DEFAULT_DATE_PATTERN);
+    }
+
+    /**
+     * Get the specified ObjectMapper
+     * @param name Name of the ObjectMapper
+     * @return The ObjectMapper named 'name'
+     */
+    protected static ObjectMapper mapper(String name) {
+        return get(name, Jackson5::newObjectMapper).getMapper();
+    }
     /**
      * Get the default ObjectMapper
      * @return The default ObjectMapper
      */
     protected static ObjectMapper mapper() {
-        mappers.putIfAbsent("", configure(new ObjectMapper()));
-        return mappers.get("");
+        return get().getMapper();
     }
 
-    public static final Map<String, ObjectMapper> mappers = new HashMap<>();
-
-    /**
-     * Get the default ObjectReader
-     * @return The default ObjectReader
-     */
-    public static ObjectReader reader() {
-        return reader("");
-    }
-
-    /**
-     * Get the default ObjectWriter
-     * @return The default ObjectWriter
-     */
-    public static ObjectWriter writer() {
-        return writer("");
-    }
+    private static final Map<String, Jackson5> jacksons = new HashMap<>();
 
     /**
      * Get the ObjectReader with the specified name
@@ -137,7 +199,7 @@ public class Jackson5 {
      * @return The ObjectReader
      */
     public static ObjectReader reader(String name) {
-        return mappers.get(name).reader();
+        return mapper(name).reader();
     }
 
     /**
@@ -146,7 +208,23 @@ public class Jackson5 {
      * @return The ObjectWriter
      */
     public static ObjectWriter writer(String name) {
-        return mappers.get(name).writer();
+        return mapper(name).writer();
+    }
+
+    /**
+     * Get the default ObjectReader
+     * @return The default ObjectReader
+     */
+    public static ObjectReader reader() {
+        return mapper().reader();
+    }
+
+    /**
+     * Get the default ObjectWriter
+     * @return The default ObjectWriter
+     */
+    public static ObjectWriter writer() {
+        return mapper().writer();
     }
 
     /**
@@ -230,32 +308,32 @@ public class Jackson5 {
         return mapper().reader().readValue(s.toString(), tClass);
     }
 
+    // *****************************************************************************************************
     private final JsonRenderer jsonRenderer;
 
-    protected Jackson5(String name, ObjectMapper objectMapper, boolean pretty) {
-        mappers.put(name, objectMapper);
-        this.jsonRenderer = new JsonRenderer(objectMapper, pretty);
-    }
-    protected Jackson5(ObjectMapper objectMapper, boolean pretty) {
-        this("", objectMapper, pretty);
-    }
     protected Jackson5(ObjectMapper objectMapper) {
-        this("", objectMapper);
+        this.jsonRenderer = new JsonRenderer(objectMapper, false);
     }
-    protected Jackson5(String name, ObjectMapper objectMapper) {
-        this(name, objectMapper, false);
+
+    private ObjectMapper getMapper() {
+        return jsonRenderer.objectMapper;
     }
-    protected Jackson5(String name, boolean pretty) {
-        this(name, configure(new ObjectMapper()), pretty);
-    }
-    protected Jackson5(String name) {
-        this(name, false);
+
+    /**
+     * pretty print JSON string according to boolean parameter
+     * @param pretty If true pretty print JSON
+     * @return This Jackson5 object
+     */
+    public Jackson5 pretty(boolean pretty) {
+        jsonRenderer.pretty(pretty);
+        return this;
     }
     /**
-     * Default constructor
+     * pretty print JSON string
+     * @return This Jackson5 object
      */
-    protected Jackson5() {
-        this(configure(new ObjectMapper()), false);
+    public Jackson5 pretty() {
+        return pretty(true);
     }
 
     /**
