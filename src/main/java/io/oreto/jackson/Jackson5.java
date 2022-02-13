@@ -16,6 +16,7 @@ import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 import java.io.IOException;
+import java.sql.Time;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -28,51 +29,60 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 public class Jackson5 {
-    public static final String DEFAULT_NAME = Util.Str.EMPTY;
-    public static String DEFAULT_DATE_PATTERN = "yyyy-MM-dd";
-    public static String DEFAULT_TIME_PATTERN = "HH:mm:ss";
+    static final String DEFAULT_NAME = Util.Str.EMPTY;
+    static String DEFAULT_DATE_PATTERN = "yyyy-MM-dd";
+    static String DEFAULT_TIME_PATTERN = "HH:mm:ss";
+    static String DEFAULT_DATE_TIME_PATTERN = DEFAULT_DATE_PATTERN + " " + DEFAULT_TIME_PATTERN;
 
+    private static Supplier<ObjectMapper> defaultSupplier = Jackson5::newObjectMapper;
+
+
+    public static void supply(String name, Supplier<ObjectMapper> supplier) {
+        Jackson5 jackson5 = new Jackson5(name, supplier.get());
+        jacksons.put(name, jackson5);
+    }
     /**
-     * Set the default ObjectMapper
-     * @param objectMapper Use the supplied ObjectMapper instead of the default one
+     * Set the default ObjectMapper supplier
+     * Should be called before the Jackson5.get method
+     * @param supplier Use the supplied ObjectMapper instead of the default one
      */
-    public static void setDefaultMapper(ObjectMapper objectMapper) {
-        if (jacksons.containsKey(DEFAULT_NAME)) {
-            jacksons.get(DEFAULT_NAME).jsonRenderer.objectMapper = objectMapper;
-        } else {
-            get(DEFAULT_NAME, () -> objectMapper);
-        }
+    public static void supply(Supplier<ObjectMapper> supplier) {
+        Jackson5.defaultSupplier = supplier;
+        supply(DEFAULT_NAME, Jackson5.defaultSupplier);
     }
 
     /**
-     * Set the default date pattern. Only affects the default ObjectMapper
+     * Set the default date pattern.
      * @param datePattern The default date pattern String
      */
     public static void setDefaultDatePattern(String datePattern) {
         Jackson5.DEFAULT_DATE_PATTERN = datePattern;
     }
     /**
-     * Set the default time pattern. Only affects the default ObjectMapper
+     * Set the default time pattern.
      * @param timePattern The default time pattern String
      */
     public static void setDefaultTimePattern(String timePattern) {
         Jackson5.DEFAULT_TIME_PATTERN = timePattern;
     }
+    /**
+     * Set the default datetime pattern.
+     * @param dateTimePattern The default datetime pattern String
+     */
+    public static void setDefaultDateTimePattern(String dateTimePattern) {
+        Jackson5.DEFAULT_DATE_TIME_PATTERN = dateTimePattern;
+    }
 
     /**
      * Get a Jackson5 Object
      * @param name The name of the Jackson5
-     * @param objectMapperSupplier The ObjectMapper supplier
-     * @return new or existing Jackson5 object with specified name and ObjectMapper
+     * @return Jackson5 object with specified name and ObjectMapper
+     * @throws NoSuchJackson5 If name does not exist
      */
-    public static Jackson5 get(String name, Supplier<ObjectMapper> objectMapperSupplier) {
-        if (jacksons.containsKey(name)) {
+    public static Jackson5 get(String name) {
+        if (jacksons.containsKey(name))
             return jacksons.get(name);
-        } else {
-            Jackson5 jackson5 = new Jackson5(objectMapperSupplier.get());
-            jacksons.put(name, jackson5);
-            return jackson5;
-        }
+        throw new NoSuchJackson5(String.format("No Jackson5 named %s has been supplied", name));
     }
 
     /**
@@ -80,16 +90,23 @@ public class Jackson5 {
      * @return new or existing Jackson5 object with specified name
      */
     public static Jackson5 get() {
-        return get(DEFAULT_NAME, Jackson5::newObjectMapper);
+        if (!jacksons.containsKey(DEFAULT_NAME))
+            supply(defaultSupplier);
+        return jacksons.get(DEFAULT_NAME);
     }
 
-
     /**
-     * Default configuration of the ObjectMapper
-     * @return The new configured ObjectMapper
+     * Create a new ObjectMapper using the supplied pattern strings.
+     * @param datePattern Pattern string representing the date.
+     * @param timePattern Pattern string representing the time.
+     * @param dateTimePattern Pattern string representing the date+time.
+     * @return The new ObjectMapper
      */
-    public static ObjectMapper newObjectMapper(String datePattern, String dateTimePattern) {
-        return registerTimeModule(new ObjectMapper(), datePattern, dateTimePattern)
+    public static ObjectMapper newObjectMapper(String datePattern
+            , String timePattern
+            , String dateTimePattern) {
+        return registerTimeModule(new ObjectMapper()
+                , datePattern, timePattern, dateTimePattern)
                 .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
                 .configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
                 .configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
@@ -99,18 +116,47 @@ public class Jackson5 {
     }
 
     /**
+     * Create a new ObjectMapper using the supplied pattern strings.
+     * @param datePattern Pattern string representing the date.
+     * @param timePattern Pattern string representing the time.
+     * @return The new ObjectMapper
+     */
+    public static ObjectMapper newObjectMapper(String datePattern, String timePattern) {
+        return newObjectMapper(datePattern, timePattern, String.format("%s %s", datePattern, timePattern));
+    }
+
+    /**
+     * Create a new ObjectMapper using the supplied date pattern string.
+     * @param datePattern Pattern string representing the date.
+     * @return The new ObjectMapper
+     */
+    public static ObjectMapper newObjectMapper(String datePattern) {
+        return newObjectMapper(datePattern, DEFAULT_TIME_PATTERN);
+    }
+    /**
+     * Create a new ObjectMapper using default settings
+     * @return The new ObjectMapper
+     */
+    public static ObjectMapper newObjectMapper() {
+        return newObjectMapper(DEFAULT_DATE_PATTERN);
+    }
+
+    /**
      * Register date time patterns with the object mapper and setup serializers/deserializers for them.
      * @param objectMapper Object mapper to register time patterns on
-     * @param datePattern The pattern of date formats
-     * @param dateTimePattern The pattern of date time formats
+     * @param datePattern The pattern of date formats. java.util.Date and LocalDate
+     * @param timePattern The pattern of time formats. java.sql.Time
+     * @param dateTimePattern The pattern of date time formats. LocalDateTime
      * @return The ObjectMapper after registration
      */
     public static ObjectMapper registerTimeModule(ObjectMapper objectMapper
             , String datePattern
+            , String timePattern
             , String dateTimePattern) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(datePattern);
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern);
         DateFormat dateFormat = new SimpleDateFormat(dateTimePattern);
+        DateFormat timeFormatter = new SimpleDateFormat(timePattern);
 
         return objectMapper.registerModule(new JavaTimeModule()
                 .addSerializer(LocalDate.class, new LocalDateSerializer(dateFormatter))
@@ -156,167 +202,53 @@ public class Jackson5 {
                         }
                     }
                 })
+                // java.sql.Time
+                .addSerializer(Time.class, new JsonSerializer<Time>() {
+                    @Override
+                    public void serialize(Time value, JsonGenerator gen, SerializerProvider serializers)
+                            throws IOException {
+                        gen.writeString(timeFormatter.format(value));
+                    }
+                })
+                .addDeserializer(Time.class, new JsonDeserializer<Time>() {
+                    @Override
+                    public Time deserialize(JsonParser p, DeserializationContext ctxt)
+                            throws IOException {
+                        try {
+                            return new Time(dateFormat.parse(p.getText()).getTime());
+                        } catch (ParseException e) {
+                            throw new IOException(e);
+                        }
+                    }
+                })
        );
-    }
-
-    /**
-     * Create a new ObjectMapper using the supplied date pattern string.
-     * @param datePattern Pattern string representing the date.
-     * @return The new ObjectMapper
-     */
-    public static ObjectMapper newObjectMapper(String datePattern) {
-       return newObjectMapper(datePattern, String.format("%s %s", datePattern, DEFAULT_TIME_PATTERN));
-    }
-    /**
-     * Create a new ObjectMapper using default settings
-     * @return The new ObjectMapper
-     */
-    public static ObjectMapper newObjectMapper() {
-        return newObjectMapper(DEFAULT_DATE_PATTERN);
-    }
-
-    /**
-     * Get the specified ObjectMapper
-     * @param name Name of the ObjectMapper
-     * @return The ObjectMapper named 'name'
-     */
-    protected static ObjectMapper mapper(String name) {
-        return get(name, Jackson5::newObjectMapper).getMapper();
-    }
-    /**
-     * Get the default ObjectMapper
-     * @return The default ObjectMapper
-     */
-    protected static ObjectMapper mapper() {
-        return get().getMapper();
     }
 
     private static final Map<String, Jackson5> jacksons = new HashMap<>();
 
-    /**
-     * Get the ObjectReader with the specified name
-     * @param name Name of the ObjectReader
-     * @return The ObjectReader
-     */
-    public static ObjectReader reader(String name) {
-        return mapper(name).reader();
-    }
-
-    /**
-     * Get the ObjectWriter with the specified name
-     * @param name Name of the ObjectWriter
-     * @return The ObjectWriter
-     */
-    public static ObjectWriter writer(String name) {
-        return mapper(name).writer();
-    }
-
-    /**
-     * Get the default ObjectReader
-     * @return The default ObjectReader
-     */
-    public static ObjectReader reader() {
-        return mapper().reader();
-    }
-
-    /**
-     * Get the default ObjectWriter
-     * @return The default ObjectWriter
-     */
-    public static ObjectWriter writer() {
-        return mapper().writer();
-    }
-
-    /**
-     * Serialize Object o to JSON
-     * @param o The Object to serialize
-     * @param pretty Pretty print the JSON if true
-     * @return A JSON String
-     * @throws JsonProcessingException If errors occur during serialization
-     */
-    public static String asString(Object o, boolean pretty) throws JsonProcessingException {
-        return pretty
-                ? mapper().writerWithDefaultPrettyPrinter().writeValueAsString(o)
-                : mapper().writer().writeValueAsString(o);
-    }
-
-    /**
-     * Serialize Object o to JSON
-     * @param o The Object to serialize
-     * @return A JSON String
-     * @throws JsonProcessingException If errors occur during serialization
-     */
-    public static String asString(Object o) throws JsonProcessingException {
-        return asString(o, false);
-    }
-
-    /**
-     * Convert Object to JsonNode Object
-     * @param o Object to convert
-     * @return JsonNode
-     */
-    public static JsonNode asJson(Object o) { return mapper().valueToTree(o); }
-
-    /**
-     * Convert JSON string to a JsonNode Object
-     * @param s JSON string
-     * @return JsonNode
-     * @throws JsonProcessingException If errors occur during serialization
-     */
-    public static JsonNode asJson(String s) throws JsonProcessingException {
-        return mapper().reader().readTree(s);
-    }
-
-    /**
-     * Convert JSON String to a Map
-     * @param s JSON String to convert
-     * @return Map representation of the JSON string
-     * @throws JsonProcessingException If errors occur during serialization
-     */
-    public static Map<String, Object> asMap(String s) throws JsonProcessingException {
-        return mapper().readValue(s, new TypeReference<Map<String, Object>>() {});
-    }
-
-    /**
-     * Convert Object to a Map
-     * @param o Object to convert
-     * @return Map representation of the JSON string
-     */
-    public static Map<String, Object> asMap(Object o) {
-        return mapper().convertValue(o, new TypeReference<Map<String, Object>>() {});
-    }
-
-    /**
-     * Create new object type from value map using specified class type
-     * @param o Value map to populate new object
-     * @param tClass Class type of the new object
-     * @param <T> Type of the new object
-     * @return New typed object representing the supplied map
-     */
-    public static <T> T from(Map<String, ?> o, Class<T> tClass) {
-        return mapper().convertValue(o, tClass);
-    }
-
-    /**
-     * Create new object type from JSON string using specified class type
-     * @param s JSON String to convert
-     * @param tClass Class type of the new object
-     * @param <T> Type of the new object
-     * @return New typed object representing the supplied JSON string
-     */
-    public static <T> T from(CharSequence s , Class<T> tClass) throws IOException {
-        return mapper().reader().readValue(s.toString(), tClass);
-    }
-
     // *****************************************************************************************************
-    private final JsonRenderer jsonRenderer;
 
-    protected Jackson5(ObjectMapper objectMapper) {
-        this.jsonRenderer = new JsonRenderer(objectMapper, false);
+    private final String name;
+    private final ObjectMapper objectMapper;
+    private boolean pretty;
+
+    protected Jackson5(String name, ObjectMapper objectMapper) {
+        this.name = name;
+        this.objectMapper = objectMapper;
+        this.pretty = false;
     }
 
-    private ObjectMapper getMapper() {
-        return jsonRenderer.objectMapper;
+    public String getName() {
+        return this.name;
+    }
+
+    @Override
+    public String toString() {
+        return getName();
+    }
+
+    private JsonRenderer renderer() {
+        return new JsonRenderer(objectMapper, pretty);
     }
 
     /**
@@ -325,7 +257,7 @@ public class Jackson5 {
      * @return This Jackson5 object
      */
     public Jackson5 pretty(boolean pretty) {
-        jsonRenderer.pretty(pretty);
+        this.pretty = pretty;
         return this;
     }
     /**
@@ -341,18 +273,18 @@ public class Jackson5 {
      * @param o Object to convert
      * @return JsonNode
      */
-    public JsonNode json(Object o) {
-        return jsonRenderer.json(o);
+    public JsonNode json(Object o) throws JsonProcessingException {
+        return renderer().json(o);
     }
 
     /**
      * Convert Object to a JsonNode object
      * @param o Object to convert
-     * @param struct Fields representing the object fields which are converted
+     * @param fields Fields which are included/excluded in the JSON object
      * @return JsonNode
      */
-    public JsonNode json(Object o, IFields struct) {
-        return jsonRenderer.json(o, struct);
+    public JsonNode json(Object o, IFields fields) throws JsonProcessingException {
+        return renderer().json(o, fields);
     }
 
     /**
@@ -361,8 +293,8 @@ public class Jackson5 {
      * @param fields fields which are included in the JsonNode object
      * @return JsonNode
      */
-    public JsonNode json(Object o, String fields) {
-        return jsonRenderer.json(o, Fields.Include(fields));
+    public JsonNode json(Object o, String fields) throws JsonProcessingException {
+        return renderer().json(o, Fields.Include(fields));
     }
 
     /**
@@ -371,30 +303,116 @@ public class Jackson5 {
      * @return JSON String representing the Object o
      * @throws JsonProcessingException If errors occur during serialization
      */
-    public String render(Object o) throws JsonProcessingException {
-        return jsonRenderer.render(o);
+    public String string(Object o) throws JsonProcessingException {
+        return renderer().render(o);
     }
 
     /**
      *
      * Serialize Object as JSON string
      * @param o The object to serialize
-     * @param struct Fields representing the object fields which are serialized
+     * @param fields Fields which are included/excluded in the JSON string
      * @return JSON String representing the Object o
      * @throws JsonProcessingException If errors occur during serialization
      */
-    public String render(Object o, IFields struct) throws JsonProcessingException {
-        return jsonRenderer.render(o, struct);
+    public String string(Object o, IFields fields) throws JsonProcessingException {
+        return renderer().render(o, fields);
     }
 
     /**
      * Serialize Object as JSON string
      * @param o The object to serialize
-     * @param fields fields which are included in the JSON
+     * @param fields fields which are included in the JSON string
      * @return JSON String representing the Object o
      * @throws JsonProcessingException If errors occur during serialization
      */
-    public String render(Object o, String fields) throws JsonProcessingException {
-        return jsonRenderer.render(o, Fields.Include(fields));
+    public String string(Object o, String fields) throws JsonProcessingException {
+        return renderer().render(o, Fields.Include(fields));
+    }
+
+    /**
+     * Convert Object to a Map
+     * @param o Object to convert
+     * @param fields fields which are included/excluded in the Map
+     * @return Map representation of the Object o
+     */
+    public Map<String, Object> map(Object o, IFields fields) throws JsonProcessingException {
+        return map(json(o, fields));
+    }
+
+    /**
+     * Convert Object to a Map
+     * @param o Object to convert
+     * @return Map representation of object o
+     */
+    public Map<String, Object> map(Object o) {
+        return objectMapper.convertValue(o, new TypeReference<Map<String, Object>>() {});
+    }
+
+    /**
+     * Convert JSON String to a Map
+     * @param s JSON String to convert
+     * @param fields fields which are included/excluded in the Map
+     * @return Map representation of the JSON string
+     * @throws JsonProcessingException If errors occur during serialization
+     */
+    public Map<String, Object> map(String s, IFields fields) throws IOException {
+        return map(json(s, fields));
+    }
+
+    /**
+     * Convert JSON String to a Map
+     * @param s JSON String to convert
+     * @return Map representation of the JSON string
+     * @throws JsonProcessingException If errors occur during serialization
+     */
+    public Map<String, Object> map(String s) throws IOException {
+        return objectMapper.readValue(s, new TypeReference<Map<String, Object>>() {});
+    }
+
+    /**
+     * Create new object type from value map using specified class type
+     * @param o Value map to populate new object
+     * @param tClass Class type of the new object
+     * @param <T> Type of the new object
+     * @return New typed object representing the supplied map
+     */
+    public <T> T object(Object o, Class<T> tClass) {
+        return objectMapper.convertValue(o, tClass);
+    }
+
+    /**
+     * Create new object type from value map using specified class type
+     * @param o Value map to populate new object
+     * @param tClass Class type of the new object
+     * @param <T> Type of the new object
+     * @param fields fields which are included/excluded in the class T
+     * @return New typed object representing the supplied map
+     */
+    public <T> T object(Object o, Class<T> tClass, IFields fields) throws IOException {
+        return objectMapper.reader().readValue(renderer().json(o, fields), tClass);
+    }
+
+    /**
+     * Create new object type from JSON string using specified class type
+     * @param s JSON String to convert
+     * @param tClass Class type of the new object
+     * @param <T> Type of the new object
+     * @return New typed object representing the supplied JSON string
+     */
+    public <T> T object(CharSequence s, Class<T> tClass) throws IOException {
+        return objectMapper.reader().readValue(s.toString(), tClass);
+    }
+
+    /**
+     * Create new object type from JSON string using specified class type
+     * @param s JSON String to convert
+     * @param tClass Class type of the new object
+     * @param <T> Type of the new object
+     * @param fields fields which are included/excluded in the class T
+     * @return New typed object representing the supplied JSON string
+     */
+    public <T> T object(CharSequence s, Class<T> tClass, IFields fields) throws JsonProcessingException {
+        return object(json(s, fields), tClass);
     }
 }

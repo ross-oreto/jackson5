@@ -146,7 +146,7 @@ public class Csv<T> {
         }
         return new CsvMapper().writerFor(JsonNode.class)
                 .with(csvSchema)
-                .writeValueAsString(Jackson5.asJson(o));
+                .writeValueAsString(Jackson5.get().json(o));
     }
 
     /**
@@ -172,11 +172,11 @@ public class Csv<T> {
             if (Iterable.class.isAssignableFrom(iterator.next().getClass())) {
                 return new CsvMapper().writerFor(JsonNode.class)
                         .with(CsvSchema.builder().build().withoutHeader())
-                        .writeValueAsString(Jackson5.asJson(o));
+                        .writeValueAsString(Jackson5.get().json(o));
             }
         }
         return asCsv(StreamSupport.stream(o.spliterator(), false)
-                .map(Jackson5::asMap)
+                .map(it -> Jackson5.get().map(it))
                 .collect(Collectors.toList()), options);
     }
 
@@ -228,7 +228,7 @@ public class Csv<T> {
      */
     public String writeString() throws IOException {
         List<Map<String, Object>> o = StreamSupport.stream(data.spliterator(), false)
-                .map(Jackson5::asMap).collect(Collectors.toList());
+                .map(it -> Jackson5.get().map(it)).collect(Collectors.toList());
 
         return Csv.asCsv(o, options);
     }

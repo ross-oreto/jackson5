@@ -1,7 +1,7 @@
 package io.oreto.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.oreto.jackson.pojos.Pojo;
 import io.oreto.jackson.pojos.Pojo1;
 import io.oreto.jackson.pojos.Pojo3;
@@ -15,6 +15,7 @@ import java.time.ZoneId;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -23,7 +24,7 @@ public class Jackson5Test {
     @Test
     public void simple() throws JsonProcessingException {
         Jackson5 jackson5 = Jackson5.get();
-        String json = jackson5.render(new HashMap<String, String>(){{ put("test", "t1"); }});
+        String json = jackson5.string(new HashMap<String, String>(){{ put("test", "t1"); }});
         assertEquals("{\"test\":\"t1\"}", json);
     }
 
@@ -36,11 +37,11 @@ public class Jackson5Test {
                 , new Pojo("test2")
         );
 
-        String json = jackson5.render(items, Fields.Root("[1]").exclude("pojos"));
+        String json = jackson5.string(items, Fields.Root("[1]").exclude("pojos"));
         assertEquals("{\"name\":\"test1\",\"description\":null}", json);
 
         assertEquals("[{\"name\":\"test1\",\"description\":null},{\"name\":\"test2\",\"description\":null}]"
-                , jackson5.render(items, Fields.Exclude("pojos")));
+                , jackson5.string(items, Fields.Exclude("pojos")));
     }
 
     @Test
@@ -51,10 +52,10 @@ public class Jackson5Test {
         Jackson5 jackson5 = Jackson5.get();
 
         assertEquals("{\"name\":\"test1\",\"description\":\"a\"}"
-                , jackson5.render(pojos, Fields.Root("[1]").exclude("pojos")));
+                , jackson5.string(pojos, Fields.Root("[1]").exclude("pojos")));
 
         assertEquals("[{\"name\":\"test1\"},{\"name\":\"test2\"}]"
-                , jackson5.render(pojos, Fields.Root("[1:2]").include("name").exclude("pojos")));
+                , jackson5.string(pojos, Fields.Root("[1:2]").include("name").exclude("pojos")));
     }
 
     @Test
@@ -65,10 +66,10 @@ public class Jackson5Test {
 
         Jackson5 jackson5 = Jackson5.get();
         assertEquals("[{\"description\":\"a\"},{\"description\":\"b\"},{\"description\":\"c\"}]"
-                , jackson5.render(pojos, Fields.Include("description").exclude("pojos")));
+                , jackson5.string(pojos, Fields.Include("description").exclude("pojos")));
 
         assertEquals("[{\"description\":\"a\"},{\"description\":\"b\"},{\"description\":\"c\"}]"
-                , jackson5.render(pojos, Fields.Exclude("name pojos")));
+                , jackson5.string(pojos, Fields.Exclude("name pojos")));
     }
 
     @Test
@@ -81,10 +82,10 @@ public class Jackson5Test {
         Jackson5 jackson5 = Jackson5.get();
 
         assertEquals("[{\"name\":\"test1\"},{\"name\":\"test2\"}]"
-                , jackson5.render(pojos, Fields.Include("name")));
+                , jackson5.string(pojos, Fields.Include("name")));
 
         assertEquals("{\"description\":\"a\"}"
-                , jackson5.render(pojos, Fields.Root("[1]").include("{ description }")));
+                , jackson5.string(pojos, Fields.Root("[1]").include("{ description }")));
     }
 
     @Test
@@ -101,7 +102,7 @@ public class Jackson5Test {
         Jackson5 jackson5 = Jackson5.get();
         assertEquals("[{\"name\":\"test1\",\"pojos\":[{\"name\":\"a\"},{\"name\":\"b\"}," +
                         "{\"name\":\"c\"}]},{\"name\":\"test2\",\"pojos\":[{\"name\":\"d\"},{\"name\":\"e\"},{\"name\":\"f\"}]}]"
-                , jackson5.render(items, Fields.Include("{\n\rname\npojos{\r\nname\r} \t} ")));
+                , jackson5.string(items, Fields.Include("{\n\rname\npojos{\r\nname\r} \t} ")));
 
         assertEquals( "[{\"name\":\"test1\",\"pojos\":[{\"name\":\"a\",\"pojos\":" +
                         "[{\"name\":\"1\"},{\"name\":\"2\"}]},{\"name\":\"b\",\"pojos\":" +
@@ -109,7 +110,7 @@ public class Jackson5Test {
                         "[{\"name\":\"5\"},{\"name\":\"6\"}]}]},{\"name\":\"test2\",\"pojos\":" +
                         "[{\"name\":\"d\",\"pojos\":[{\"name\":\"7\"},{\"name\":\"8\"}]},{\"name\":\"e\",\"pojos\":" +
                         "[]},{\"name\":\"f\",\"pojos\":[]}]}]"
-                , jackson5.render(items, Fields.Include("{ name pojos{ name pojos {name} }}")));
+                , jackson5.string(items, Fields.Include("{ name pojos{ name pojos {name} }}")));
     }
 
     @Test
@@ -122,7 +123,7 @@ public class Jackson5Test {
 
         assertEquals("[{\"name\":\"pojo1\",\"pojo\":{\"name\":\"test1\",\"pojos\":[]}}" +
                         ",{\"name\":\"pojo2\",\"pojo\":{\"name\":\"test2\",\"pojos\":[{\"name\":\"a\"},{\"name\":\"b\"}]}}]"
-                , jackson5.render(items, Fields.Include("{ name pojo { name pojos {name} } }")));
+                , jackson5.string(items, Fields.Include("{ name pojo { name pojos {name} } }")));
     }
 
     @Test
@@ -136,7 +137,7 @@ public class Jackson5Test {
         assertEquals("[{\"name\":\"pojo1\",\"pojo\":{\"name\":\"test1\",\"description\":null,\"pojos\":[]}}," +
                         "{\"name\":\"pojo2\",\"pojo\":{\"name\":\"test2\",\"description\":null,\"pojos\":" +
                         "[{\"description\":null,\"pojos\":[]},{\"description\":null,\"pojos\":[]}]}}]"
-                , jackson5.render(items, Fields.Exclude("{ pojo { pojos {name} } }")));
+                , jackson5.string(items, Fields.Exclude("{ pojo { pojos {name} } }")));
     }
 
     @Test
@@ -147,7 +148,7 @@ public class Jackson5Test {
                         , new Pojo1("f"));
 
         Jackson5 jackson5 = Jackson5.get();
-        String json = jackson5.render(pojo, Fields.Include("name pojos[1] { name pojos[2:4]{name} }"));
+        String json = jackson5.string(pojo, Fields.Include("name pojos[1] { name pojos[2:4]{name} }"));
         assertEquals("{\"name\":\"test2\",\"pojos\":[{\"name\":\"d\",\"pojos\":[{\"name\":\"8\"},{\"name\":\"9\"},{\"name\":\"10\"}]}]}"
                 ,json);
     }
@@ -160,7 +161,7 @@ public class Jackson5Test {
                         , new Pojo1("f", "bar"));
 
         Jackson5 jackson5 = Jackson5.get();
-        String json = jackson5.render(pojo, Fields.Exclude("name pojos[1] { name pojos[2:4] }"));
+        String json = jackson5.string(pojo, Fields.Exclude("name pojos[1] { name pojos[2:4] }"));
         assertEquals("{\"description\":\"b\",\"pojos\":[{\"description\":null,\"pojos\":[{\"name\":\"7\"},{\"name\":\"11\"},{\"name\":\"12\"}]},{\"name\":\"e\",\"description\":\"foo\",\"pojos\":[]},{\"name\":\"f\",\"description\":\"bar\",\"pojos\":[]}]}"
                 ,json);
     }
@@ -174,17 +175,16 @@ public class Jackson5Test {
         pojoDate.setDate(date);
         pojoDate.setSqlDate(new java.sql.Date(date.getTime()));
 
-        Jackson5.setDefaultTimePattern("hh:mm:ss a");
         Jackson5 jackson5 = Jackson5.get();
 
-        String json = jackson5.render(pojoDate);
-        PojoDate pojoDate1 = Jackson5.from(json, PojoDate.class);
+        String json = jackson5.string(pojoDate);
+        PojoDate pojoDate1 = jackson5.object(json, PojoDate.class);
 
-        assertEquals(jackson5.render(pojoDate.getDate()), jackson5.render(pojoDate1.getDate()));
+        assertEquals(jackson5.string(pojoDate.getDate()), jackson5.string(pojoDate1.getDate()));
     }
 
     @Test
-    public void test11() {
+    public void test11() throws JsonProcessingException {
         PojoDate pojoDate = new PojoDate();
         LocalDate localDate = LocalDate.of(2022, 2, 11);
         LocalDateTime localDateTime =
@@ -201,7 +201,7 @@ public class Jackson5Test {
     }
 
     @Test
-    public void test12() {
+    public void test12() throws JsonProcessingException {
         PojoDate pojoDate = new PojoDate();
         LocalDate localDate = LocalDate.of(2022, 2, 11);
         LocalDateTime localDateTime =
@@ -211,14 +211,30 @@ public class Jackson5Test {
         pojoDate.setDate(Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant()));
         pojoDate.setSqlDate(new java.sql.Date(pojoDate.getDate().getTime()));
 
-        Jackson5.setDefaultMapper(Jackson5.registerTimeModule(new ObjectMapper()
-                , "MM/dd/yyyy"
-                , "MM/dd/yyyy HH:mm"));
+        Jackson5.supply("j5", () -> Jackson5.newObjectMapper(
+                "MM/dd/yyyy"
+                , "HH:mm"));
+        Jackson5 jackson5 = Jackson5.get("j5");
 
-        Jackson5 jackson5 = Jackson5.get();
         assertEquals("02/11/2022", jackson5.json(pojoDate).get("localDate").asText());
         assertEquals("02/11/2022 23:36", jackson5.json(pojoDate).get("localDateTime").asText());
         assertEquals("02/11/2022 23:36", jackson5.json(pojoDate).get("date").asText());
         assertEquals("02/11/2022 23:36", jackson5.json(pojoDate).get("sqlDate").asText());
+    }
+
+    @Test
+    public void test13() throws IOException {
+        Jackson5 jackson5 = Jackson5.get();
+        JsonNode jsonNode =
+                jackson5.json("{ 'name': 'test', 'description': 'description' }", Fields.Include("name"));
+        assertEquals("test", jsonNode.get("name").asText());
+        assertEquals(1, jsonNode.size());
+
+        Pojo pojo =
+                jackson5.object(new HashMap<String, Object>(){{ put("name", "test"); }}, Pojo.class);
+        assertEquals("test", pojo.getName());
+
+        Map<String, Object> map = jackson5.map("{ 'name': 'test', 'description': 'description' }");
+        assertEquals(jsonNode.get("name").asText(), map.get("name"));
     }
 }

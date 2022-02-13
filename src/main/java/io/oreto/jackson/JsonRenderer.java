@@ -15,8 +15,8 @@ import static io.oreto.jackson.Util.MultiString;
 import static io.oreto.jackson.Util.Str;
 
 class JsonRenderer {
-    ObjectMapper objectMapper;
-    private boolean pretty;
+    private final ObjectMapper objectMapper;
+    private final boolean pretty;
 
     /**
      * Constructor
@@ -33,16 +33,6 @@ class JsonRenderer {
      */
     JsonRenderer(ObjectMapper objectMapper) {
         this(objectMapper, false);
-    }
-
-    /**
-     * Pretty print JSON
-     * @param pretty Pretty print json if true
-     * @return This JsonRenderer
-     */
-    JsonRenderer pretty(boolean pretty) {
-        this.pretty = pretty;
-        return this;
     }
 
     /**
@@ -97,7 +87,7 @@ class JsonRenderer {
      * @param o Object to convert
      * @return JsonNode
      */
-    JsonNode json(Object o)  {
+    JsonNode json(Object o) throws JsonProcessingException {
         if (o instanceof IFields) {
             return json(o, (IFields) o);
         }
@@ -128,7 +118,7 @@ class JsonRenderer {
      * @param fields Fields representing the object fields which are converted
      * @return JsonNode
      */
-    JsonNode json(Object o, IFields fields) {
+    JsonNode json(Object o, IFields fields) throws JsonProcessingException {
         // if root is present, use the specified root.
         if (Str.isNotBlank(fields.root())) {
             o = useRoot(o, fields.root());
@@ -212,7 +202,7 @@ class JsonRenderer {
         return o;
     }
 
-    private List<ObjectNode> initTree(Object o) {
+    private List<ObjectNode> initTree(Object o) throws JsonProcessingException {
         List<ObjectNode> json = new ArrayList<>();
         if (o instanceof ObjectNode) {
             ObjectNode element = (ObjectNode) o;
@@ -224,7 +214,9 @@ class JsonRenderer {
                     json.add((ObjectNode) jsonNode);
             }
         } else {
-            JsonNode element = objectMapper.valueToTree(o);
+            JsonNode element = o instanceof String
+                    ? objectMapper.readTree((String) o)
+                    : objectMapper.valueToTree(o);
             if (element.isArray()) {
                 for (JsonNode jsonNode : element) {
                     if (jsonNode instanceof ObjectNode)

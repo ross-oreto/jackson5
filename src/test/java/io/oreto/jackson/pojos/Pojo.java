@@ -5,9 +5,11 @@ import java.util.Collections;
 import java.util.List;
 
 public class Pojo {
-    private final String name;
+    private String name;
     private String description;
-    private final List<Pojo1> pojos;
+    private List<Pojo1> pojos;
+
+    public Pojo() {}
 
     public Pojo(String name) {
         this.name = name;
@@ -34,8 +36,20 @@ public class Pojo {
     public String getName() {
         return name;
     }
-
     public String getDescription() {
         return description;
+    }
+    public List<Pojo1> getPojos() {
+        return pojos;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+    public void setDescription(String description) {
+        this.description = description;
+    }
+    public void setPojos(List<Pojo1> pojos) {
+        this.pojos = pojos;
     }
 }
