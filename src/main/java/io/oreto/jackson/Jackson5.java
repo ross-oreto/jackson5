@@ -1,42 +1,25 @@
 package io.oreto.jackson;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.*;
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
-import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.sql.Time;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
 public class Jackson5 {
     static final String DEFAULT_NAME = Util.Str.EMPTY;
-    static String DEFAULT_DATE_PATTERN = "yyyy-MM-dd";
-    static String DEFAULT_TIME_PATTERN = "HH:mm:ss";
-    static String DEFAULT_DATE_TIME_PATTERN = DEFAULT_DATE_PATTERN + " " + DEFAULT_TIME_PATTERN;
 
-    private static Supplier<ObjectMapper> defaultSupplier = Jackson5::newObjectMapper;
+    private static Supplier<ObjectMapper> defaultSupplier = Jackson5.newSupplier();
 
-
+    /**
+     * Supply named Jackson5 with an ObjectMapper.
+     * @param name Name of the new Jackson5
+     * @param supplier ObjectMapper supplier
+     */
     public static void supply(String name, Supplier<ObjectMapper> supplier) {
         Jackson5 jackson5 = new Jackson5(name, supplier.get());
         jacksons.put(name, jackson5);
@@ -52,37 +35,43 @@ public class Jackson5 {
     }
 
     /**
-     * Set the default date pattern.
-     * @param datePattern The default date pattern String
+     * Supply named Jackson5 with an ObjectMapper.
+     * @param name Name of the new Jackson5
+     * @param mapperConfig ObjectMapper configuration
      */
-    public static void setDefaultDatePattern(String datePattern) {
-        Jackson5.DEFAULT_DATE_PATTERN = datePattern;
+    public static void supply(String name, MapperConfig mapperConfig) {
+        supply(name, newSupplier(mapperConfig));
     }
+
     /**
-     * Set the default time pattern.
-     * @param timePattern The default time pattern String
+     * Set the default ObjectMapper supplier
+     * @param mapperConfig ObjectMapper configuration
      */
-    public static void setDefaultTimePattern(String timePattern) {
-        Jackson5.DEFAULT_TIME_PATTERN = timePattern;
-    }
-    /**
-     * Set the default datetime pattern.
-     * @param dateTimePattern The default datetime pattern String
-     */
-    public static void setDefaultDateTimePattern(String dateTimePattern) {
-        Jackson5.DEFAULT_DATE_TIME_PATTERN = dateTimePattern;
+    public static void supply(MapperConfig mapperConfig) {
+        supply(DEFAULT_NAME, newSupplier(mapperConfig));
     }
 
     /**
      * Get a Jackson5 Object
      * @param name The name of the Jackson5
-     * @return Jackson5 object with specified name and ObjectMapper
+     * @return Jackson5 object with specified name
      * @throws NoSuchJackson5 If name does not exist
      */
     public static Jackson5 get(String name) {
         if (jacksons.containsKey(name))
             return jacksons.get(name);
         throw new NoSuchJackson5(String.format("No Jackson5 named %s has been supplied", name));
+    }
+
+    /**
+     * Get the Jackson5 object by name or the default if name doesn't exist.
+     * @param name The name of the Jackson5
+     * @return Jackson5 object with specified name
+     */
+    public static Jackson5 getOrDefault(String name) {
+        if (jacksons.containsKey(name))
+            return jacksons.get(name);
+        return get();
     }
 
     /**
@@ -96,132 +85,28 @@ public class Jackson5 {
     }
 
     /**
-     * Create a new ObjectMapper using the supplied pattern strings.
-     * @param datePattern Pattern string representing the date.
-     * @param timePattern Pattern string representing the time.
-     * @param dateTimePattern Pattern string representing the date+time.
-     * @return The new ObjectMapper
+     * Create a new ObjectMapper supplier using the mapperConfig
+     * @param mapperConfig Details how to configure the new ObjectMapper.
+     * @return The new ObjectMapper supplier
      */
-    public static ObjectMapper newObjectMapper(String datePattern
-            , String timePattern
-            , String dateTimePattern) {
-        return registerTimeModule(new ObjectMapper()
-                , datePattern, timePattern, dateTimePattern)
-                .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
-                .configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
-                .configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .registerModule(new Jdk8Module())
-                .registerModule(new ParameterNamesModule());
+    public static Supplier<ObjectMapper> newSupplier(MapperConfig mapperConfig) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        mapperConfig.modules().forEach(objectMapper::registerModule);
+        objectMapper.registerModule(mapperConfig.timeModule());
+        mapperConfig.features().forEach((objectMapper::configure));
+        mapperConfig.serializationFeatures().forEach((objectMapper::configure));
+        mapperConfig.deserializationFeatures().forEach((objectMapper::configure));
+        mapperConfig.visibility().forEach((objectMapper::setVisibility));
+
+        return () -> objectMapper;
     }
 
     /**
-     * Create a new ObjectMapper using the supplied pattern strings.
-     * @param datePattern Pattern string representing the date.
-     * @param timePattern Pattern string representing the time.
-     * @return The new ObjectMapper
+     * Create a new ObjectMapper supplier using the mapperConfig
+     * @return The new ObjectMapper supplier
      */
-    public static ObjectMapper newObjectMapper(String datePattern, String timePattern) {
-        return newObjectMapper(datePattern, timePattern, String.format("%s %s", datePattern, timePattern));
-    }
-
-    /**
-     * Create a new ObjectMapper using the supplied date pattern string.
-     * @param datePattern Pattern string representing the date.
-     * @return The new ObjectMapper
-     */
-    public static ObjectMapper newObjectMapper(String datePattern) {
-        return newObjectMapper(datePattern, DEFAULT_TIME_PATTERN);
-    }
-    /**
-     * Create a new ObjectMapper using default settings
-     * @return The new ObjectMapper
-     */
-    public static ObjectMapper newObjectMapper() {
-        return newObjectMapper(DEFAULT_DATE_PATTERN);
-    }
-
-    /**
-     * Register date time patterns with the object mapper and setup serializers/deserializers for them.
-     * @param objectMapper Object mapper to register time patterns on
-     * @param datePattern The pattern of date formats. java.util.Date and LocalDate
-     * @param timePattern The pattern of time formats. java.sql.Time
-     * @param dateTimePattern The pattern of date time formats. LocalDateTime
-     * @return The ObjectMapper after registration
-     */
-    public static ObjectMapper registerTimeModule(ObjectMapper objectMapper
-            , String datePattern
-            , String timePattern
-            , String dateTimePattern) {
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(datePattern);
-        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern);
-        DateFormat dateFormat = new SimpleDateFormat(dateTimePattern);
-        DateFormat timeFormatter = new SimpleDateFormat(timePattern);
-
-        return objectMapper.registerModule(new JavaTimeModule()
-                .addSerializer(LocalDate.class, new LocalDateSerializer(dateFormatter))
-                .addDeserializer(LocalDate.class, new LocalDateDeserializer(dateFormatter))
-                .addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(dateTimeFormatter))
-                .addDeserializer(LocalDateTime.class, new LocalDateTimeDeserializer(dateTimeFormatter))
-                // java.util.Date
-                .addSerializer(Date.class, new JsonSerializer<Date>() {
-                    @Override
-                    public void serialize(Date value, JsonGenerator gen, SerializerProvider serializers)
-                            throws IOException {
-                        gen.writeString(dateFormat.format(value));
-                    }
-                })
-                .addDeserializer(Date.class, new JsonDeserializer<Date>() {
-                    @Override
-                    public Date deserialize(JsonParser p, DeserializationContext ctxt)
-                            throws IOException {
-                        try {
-                            return dateFormat.parse(p.getText());
-                        } catch (ParseException e) {
-                            throw new IOException(e);
-                        }
-                    }
-                })
-                // java.sql.Date
-                .addSerializer(java.sql.Date.class, new JsonSerializer<java.sql.Date>() {
-                    @Override
-                    public void serialize(java.sql.Date value
-                            , JsonGenerator gen
-                            , SerializerProvider serializers) throws IOException {
-                        gen.writeString(dateFormat.format(value));
-                    }
-                })
-                .addDeserializer(java.sql.Date.class, new JsonDeserializer<java.sql.Date>() {
-                    @Override
-                    public java.sql.Date deserialize(JsonParser p, DeserializationContext ctxt)
-                            throws IOException {
-                        try {
-                            return new java.sql.Date(dateFormat.parse(p.getText()).getTime());
-                        } catch (ParseException e) {
-                            throw new IOException(e);
-                        }
-                    }
-                })
-                // java.sql.Time
-                .addSerializer(Time.class, new JsonSerializer<Time>() {
-                    @Override
-                    public void serialize(Time value, JsonGenerator gen, SerializerProvider serializers)
-                            throws IOException {
-                        gen.writeString(timeFormatter.format(value));
-                    }
-                })
-                .addDeserializer(Time.class, new JsonDeserializer<Time>() {
-                    @Override
-                    public Time deserialize(JsonParser p, DeserializationContext ctxt)
-                            throws IOException {
-                        try {
-                            return new Time(dateFormat.parse(p.getText()).getTime());
-                        } catch (ParseException e) {
-                            throw new IOException(e);
-                        }
-                    }
-                })
-       );
+    public static Supplier<ObjectMapper> newSupplier() {
+        return newSupplier(MapperConfig.defaultConfig());
     }
 
     private static final Map<String, Jackson5> jacksons = new HashMap<>();

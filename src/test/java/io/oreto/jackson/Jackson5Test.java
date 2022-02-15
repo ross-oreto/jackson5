@@ -194,10 +194,11 @@ public class Jackson5Test {
         pojoDate.setDate(Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant()));
         pojoDate.setSqlDate(new java.sql.Date(pojoDate.getDate().getTime()));
 
-        assertEquals("2022-02-11", Jackson5.get().json(pojoDate).get("localDate").asText());
-        assertEquals("2022-02-11 23:36:00", Jackson5.get().json(pojoDate).get("localDateTime").asText());
-        assertEquals("2022-02-11 00:00:00", Jackson5.get().json(pojoDate).get("date").asText());
-        assertEquals("2022-02-11 00:00:00", Jackson5.get().json(pojoDate).get("sqlDate").asText());
+        JsonNode json = Jackson5.get().json(pojoDate);
+        assertEquals("02-11-2022", json.get("localDate").asText());
+        assertEquals("02-11-2022 23:36:00", json.get("localDateTime").asText());
+        assertEquals("02-11-2022 00:00:00", json.get("date").asText());
+        assertEquals("02-11-2022 00:00:00", json.get("sqlDate").asText());
     }
 
     @Test
@@ -210,31 +211,42 @@ public class Jackson5Test {
         pojoDate.setLocalDateTime(localDateTime);
         pojoDate.setDate(Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant()));
         pojoDate.setSqlDate(new java.sql.Date(pojoDate.getDate().getTime()));
+        pojoDate.setTime(new java.sql.Time(pojoDate.getDate().getTime()));
 
-        Jackson5.supply("j5", () -> Jackson5.newObjectMapper(
-                "MM/dd/yyyy"
-                , "HH:mm"));
+        Jackson5.supply("j5", MapperConfig.defaultConfig()
+                .dateFormat("MM/dd/yyyy")
+                .timeFormat("HH:mm")
+                .dateTimeFormat("MM/dd/yyyy HH:mm"));
         Jackson5 jackson5 = Jackson5.get("j5");
 
-        assertEquals("02/11/2022", jackson5.json(pojoDate).get("localDate").asText());
-        assertEquals("02/11/2022 23:36", jackson5.json(pojoDate).get("localDateTime").asText());
-        assertEquals("02/11/2022 23:36", jackson5.json(pojoDate).get("date").asText());
-        assertEquals("02/11/2022 23:36", jackson5.json(pojoDate).get("sqlDate").asText());
+        JsonNode json = jackson5.json(pojoDate);
+        assertEquals("02/11/2022", json.get("localDate").asText());
+        assertEquals("02/11/2022 23:36", json.get("localDateTime").asText());
+        assertEquals("02/11/2022 23:36", json.get("date").asText());
+        assertEquals("02/11/2022 23:36", json.get("sqlDate").asText());
+        assertEquals("23:36", json.get("time").asText());
     }
 
     @Test
     public void test13() throws IOException {
         Jackson5 jackson5 = Jackson5.get();
+        String json = "{ 'name': 'test', 'description': 'description' }";
         JsonNode jsonNode =
-                jackson5.json("{ 'name': 'test', 'description': 'description' }", Fields.Include("name"));
+                jackson5.json(json, Fields.Include("name"));
         assertEquals("test", jsonNode.get("name").asText());
         assertEquals(1, jsonNode.size());
 
-        Pojo pojo =
-                jackson5.object(new HashMap<String, Object>(){{ put("name", "test"); }}, Pojo.class);
+        Pojo pojo = jackson5.object(new HashMap<String, Object>(){{ put("name", "test"); }}, Pojo.class);
         assertEquals("test", pojo.getName());
 
-        Map<String, Object> map = jackson5.map("{ 'name': 'test', 'description': 'description' }");
+        Map<String, Object> map = jackson5.map(json);
         assertEquals(jsonNode.get("name").asText(), map.get("name"));
+
+        String test = jackson5.string(json, Fields.Include("name"));
+        assertEquals("{\"name\":\"test\"}", test);
+
+        Pojo pojo1 = jackson5.object(json, Pojo.class);
+        assertEquals("test", pojo1.getName());
+        assertEquals("description", pojo1.getDescription());
     }
 }
