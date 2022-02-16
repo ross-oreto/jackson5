@@ -9,7 +9,16 @@ Jackson5 does just that by providing a DSL to specify the json structure.
   
 ### Requirements
  - jdk 8+
- - maven 3.3.1+
+ - maven 3+
+
+### Install
+```
+<dependency>
+  <groupId>io.github.ross-oreto.jackson5</groupId>
+  <artifactId>jackson5</artifactId>
+  <version>1.0.1</version>
+</dependency>
+```
 
 ### The Jackson5 class
 Firstly this class is a static container for ObjectMappers. Map<name -> ObjectMapper>
@@ -68,7 +77,7 @@ Pojo pojo = jackson5.object(data, Pojo.class);
 String json = jackson5.string(data, "{ name }");
 ```
 - exclude the name field.
-```
+```jackson5
 jackson5.string(data, Fields.Exclude("name"));
 ```
 - Only render first 10 elements
@@ -78,7 +87,7 @@ jackson5.string(data, "list[1:10]");
 
 For more advanced examples, look at src/test/io/oreto/jackson/Jackson5Test
 
-Jackson 5 also support CSV. src/test/io/oreto/jackson/CsvTest
+Jackson 5 also supports CSV. src/test/io/oreto/jackson/CsvTest
 ``` 
 List<Map<String, Object>> elements = new ArrayList<>();
 elements.add(new LinkedHashMap<String, Object>(){{ put("name", "ross"); put("address", "Nashville, TN"); }});
