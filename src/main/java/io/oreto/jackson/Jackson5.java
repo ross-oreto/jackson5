@@ -157,6 +157,7 @@ public class Jackson5 {
      * Convert Object to a JsonNode object
      * @param o Object to convert
      * @return JsonNode
+     * @throws JsonProcessingException If errors occur during serialization
      */
     public JsonNode json(Object o) throws JsonProcessingException {
         return renderer().json(o);
@@ -167,6 +168,7 @@ public class Jackson5 {
      * @param o Object to convert
      * @param fields Fields which are included/excluded in the JSON object
      * @return JsonNode
+     * @throws JsonProcessingException If errors occur during serialization
      */
     public JsonNode json(Object o, IFields fields) throws JsonProcessingException {
         return renderer().json(o, fields);
@@ -177,6 +179,7 @@ public class Jackson5 {
      * @param o Object to convert
      * @param fields fields which are included in the JsonNode object
      * @return JsonNode
+     * @throws JsonProcessingException If errors occur during serialization
      */
     public JsonNode json(Object o, String fields) throws JsonProcessingException {
         return renderer().json(o, Fields.Include(fields));
@@ -220,6 +223,7 @@ public class Jackson5 {
      * @param o Object to convert
      * @param fields fields which are included/excluded in the Map
      * @return Map representation of the Object o
+     * @throws JsonProcessingException If errors occur during serialization
      */
     public Map<String, Object> map(Object o, IFields fields) throws JsonProcessingException {
         return map(json(o, fields));
@@ -239,7 +243,7 @@ public class Jackson5 {
      * @param s JSON String to convert
      * @param fields fields which are included/excluded in the Map
      * @return Map representation of the JSON string
-     * @throws JsonProcessingException If errors occur during serialization
+     * @throws IOException If errors occur during serialization
      */
     public Map<String, Object> map(String s, IFields fields) throws IOException {
         return map(json(s, fields));
@@ -249,7 +253,7 @@ public class Jackson5 {
      * Convert JSON String to a Map
      * @param s JSON String to convert
      * @return Map representation of the JSON string
-     * @throws JsonProcessingException If errors occur during serialization
+     * @throws IOException If errors occur during serialization
      */
     public Map<String, Object> map(String s) throws IOException {
         return objectMapper.readValue(s, new TypeReference<Map<String, Object>>() {});
@@ -273,6 +277,7 @@ public class Jackson5 {
      * @param <T> Type of the new object
      * @param fields fields which are included/excluded in the class T
      * @return New typed object representing the supplied map
+     * @throws IOException If errors occur during serialization
      */
     public <T> T object(Object o, Class<T> tClass, IFields fields) throws IOException {
         return objectMapper.reader().readValue(renderer().json(o, fields), tClass);
@@ -284,6 +289,7 @@ public class Jackson5 {
      * @param tClass Class type of the new object
      * @param <T> Type of the new object
      * @return New typed object representing the supplied JSON string
+     * @throws IOException If errors occur during serialization
      */
     public <T> T object(CharSequence s, Class<T> tClass) throws IOException {
         return objectMapper.reader().readValue(s.toString(), tClass);
@@ -296,6 +302,7 @@ public class Jackson5 {
      * @param <T> Type of the new object
      * @param fields fields which are included/excluded in the class T
      * @return New typed object representing the supplied JSON string
+     * @throws JsonProcessingException If errors occur during serialization
      */
     public <T> T object(CharSequence s, Class<T> tClass, IFields fields) throws JsonProcessingException {
         return object(json(s, fields), tClass);

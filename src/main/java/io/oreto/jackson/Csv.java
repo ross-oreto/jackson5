@@ -33,7 +33,7 @@ public class Csv<T> {
     /**
      * Convert CSV text to a List of Maps, in other words row objects
      * @param csv The csv String
-     * @return List<Map<String, ?>> rows
+     * @return List of rows
      */
     public static List<Map<String, ?>> from(String csv) {
         MappingIterator<Map<String, ?>> mappingIterator = null;
@@ -54,7 +54,7 @@ public class Csv<T> {
     /**
      * Convert CSV File to a List of Maps, in other words row objects
      * @param csv The csv File
-     * @return List<Map<String, ?>> rows
+     * @return List of rows
      */
     public static List<Map<String, ?>> from(File csv) {
         return from(IO.fileText(csv).orElse(Util.Str.EMPTY));
@@ -192,6 +192,7 @@ public class Csv<T> {
 
     /**
      * Create Csv object from data list
+     * @param <T> Type of each row
      * @param data An iterable data list representing the CSV rows
      * @param options Options representing how the csv is rendered
      * @return The Csv object
@@ -202,6 +203,7 @@ public class Csv<T> {
 
     /**
      * Create Csv object from data list
+     * @param <T> Type of each row
      * @param data An iterable data list representing the CSV rows
      * @return The Csv object
      */
@@ -235,6 +237,7 @@ public class Csv<T> {
 
     /**
      * Write CSV String to a file
+     * @param path Path to the file
      * @throws IOException If there is an issue writing CSV
      */
     public void write(Path path) throws IOException {
@@ -242,6 +245,7 @@ public class Csv<T> {
     }
     /**
      * Write CSV String to a file
+     * @param file The file to write to
      * @throws IOException If there is an issue writing CSV
      */
     public void write(File file) throws IOException {
@@ -249,6 +253,8 @@ public class Csv<T> {
     }
     /**
      * Write CSV String to a file
+     * @param path Path to the file
+     * @param more Extra path segments if needed
      * @throws IOException If there is an issue writing CSV
      */
     public void write(String path, String... more) throws IOException {
@@ -256,6 +262,7 @@ public class Csv<T> {
     }
     /**
      * Write CSV String to specified PrintWriter
+     * @param printWriter Write to this PrintWriter
      * @throws IOException If there is an issue writing CSV
      */
     public void write(PrintWriter printWriter) throws IOException {
