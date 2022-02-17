@@ -90,15 +90,7 @@ public class Jackson5 {
      * @return The new ObjectMapper supplier
      */
     public static Supplier<ObjectMapper> newSupplier(MapperConfig mapperConfig) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        mapperConfig.modules().forEach(objectMapper::registerModule);
-        objectMapper.registerModule(mapperConfig.timeModule());
-        mapperConfig.features().forEach((objectMapper::configure));
-        mapperConfig.serializationFeatures().forEach((objectMapper::configure));
-        mapperConfig.deserializationFeatures().forEach((objectMapper::configure));
-        mapperConfig.visibility().forEach((objectMapper::setVisibility));
-
-        return () -> objectMapper;
+        return mapperConfig::build;
     }
 
     /**

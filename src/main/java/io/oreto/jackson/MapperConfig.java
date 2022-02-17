@@ -146,6 +146,21 @@ public class MapperConfig {
     private final Map<SerializationFeature, Boolean> serializationFeatures = new HashMap<>();
     private final Map<PropertyAccessor, JsonAutoDetect.Visibility> visibility = new HashMap<>();
 
+    /**
+     * Builds the new ObjectMapper according this configuration object.
+     * @return A new ObjectMapper
+     */
+    public ObjectMapper build() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        modules().forEach(objectMapper::registerModule);
+        objectMapper.registerModule(timeModule());
+        features().forEach((objectMapper::configure));
+        serializationFeatures().forEach((objectMapper::configure));
+        deserializationFeatures().forEach((objectMapper::configure));
+        visibility().forEach((objectMapper::setVisibility));
+        return objectMapper;
+    }
+
     //  @param dateFormat Pattern string representing the date.
     public MapperConfig dateFormat(String dateFormat) {
         this.dateFormat = dateFormat;
