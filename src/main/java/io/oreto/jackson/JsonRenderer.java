@@ -99,12 +99,10 @@ class JsonRenderer {
      * This is helpful when we are using inclusions and create new json nodes in the process.
      * @param json A list of json object nodes.
      */
-    private void clearTree(List<ObjectNode> json) {
-        json.forEach(this::clearTree);
+    private void clearJson(List<ObjectNode> json) {
         json.clear();
     }
-    private void clearTree(JsonNode jsonNode) {
-        jsonNode.forEach(this::clearTree);
+    private void clearJson(JsonNode jsonNode) {
         if (jsonNode instanceof ObjectNode) {
             ((ObjectNode) jsonNode).removeAll();
         } else if (jsonNode instanceof ArrayNode) {
@@ -134,7 +132,7 @@ class JsonRenderer {
                 // both inclusions and exclusions
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
                 walk(json, Str.EMPTY, picker(fields.include()), copy);
-                clearTree(json);
+                clearJson(json);
                 json = new ArrayList<>();
                 if (copy instanceof ObjectNode) {
                    json.add((ObjectNode) copy);
@@ -150,7 +148,7 @@ class JsonRenderer {
                 // only inclusions
                 JsonNode copy = json.size() == 1 ? reader().createObjectNode() : reader().createArrayNode();
                 walk(json, Str.EMPTY, picker(fields.include()), copy);
-                clearTree(json);
+                clearJson(json);
                 return copy;
             } else {
                 // only exclusions
@@ -487,6 +485,7 @@ class JsonRenderer {
                         walk((ArrayNode) element, (ArrayNode) copy, path, pathMap, subset
                                 , new ArrayList<>(), property, address);
                 }
+                clearJson(element);
             }
         }
     }

@@ -121,9 +121,10 @@ public class Jackson5Test {
         );
         Jackson5 jackson5 = Jackson5.get();
 
+        String json = jackson5.string(items, Fields.Include("{ name pojo { name pojos {name} } }"));
         assertEquals("[{\"name\":\"pojo1\",\"pojo\":{\"name\":\"test1\",\"pojos\":[]}}" +
                         ",{\"name\":\"pojo2\",\"pojo\":{\"name\":\"test2\",\"pojos\":[{\"name\":\"a\"},{\"name\":\"b\"}]}}]"
-                , jackson5.string(items, Fields.Include("{ name pojo { name pojos {name} } }")));
+                , json);
     }
 
     @Test
@@ -148,7 +149,7 @@ public class Jackson5Test {
                         , new Pojo1("f"));
 
         Jackson5 jackson5 = Jackson5.get();
-        String json = jackson5.string(pojo, Fields.Include("name pojos[1] { name pojos[2:4]{name} }"));
+        String json = jackson5.string(pojo, Fields.Include("name pojos[1] { name pojos[2:4] }"));
         assertEquals("{\"name\":\"test2\",\"pojos\":[{\"name\":\"d\",\"pojos\":[{\"name\":\"8\"},{\"name\":\"9\"},{\"name\":\"10\"}]}]}"
                 ,json);
     }
