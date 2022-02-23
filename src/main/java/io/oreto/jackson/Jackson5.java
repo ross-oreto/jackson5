@@ -73,7 +73,7 @@ public class Jackson5 {
 
     /**
      * Get a Jackson5 Object
-     * @return new or existing Jackson5 object with specified name
+     * @return new or existing Jackson5 object
      */
     public static Jackson5 get() {
         if (!jacksons.containsKey(DEFAULT_NAME))
