@@ -218,7 +218,7 @@ public class Jackson5Test {
                 .dateFormat("MM/dd/yyyy")
                 .timeFormat("HH:mm")
                 .dateTimeFormat("MM/dd/yyyy HH:mm"));
-        Jackson5 jackson5 = Jackson5.get("j5");
+        Jackson5 jackson5 = Jackson5.find("j5").orElseThrow(() -> new RuntimeException("can't find Jackson5"));
 
         JsonNode json = jackson5.json(pojoDate);
         assertEquals("02/11/2022", json.get("localDate").asText());

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 public class Jackson5 {
@@ -52,15 +53,13 @@ public class Jackson5 {
     }
 
     /**
-     * Get a Jackson5 Object
+     * Get a Jackson5 Optional
      * @param name The name of the Jackson5
-     * @return Jackson5 object with specified name
-     * @throws NoSuchJackson5 If name does not exist
+     * @return Optional Jackson5 object with specified name if the name exists.
+     * If a name has not been supplied, <tt>Optional.empty()</tt>
      */
-    public static Jackson5 get(String name) {
-        if (jacksons.containsKey(name))
-            return jacksons.get(name);
-        throw new NoSuchJackson5(String.format("No Jackson5 named %s has been supplied", name));
+    public static Optional<Jackson5> find(String name) {
+        return jacksons.containsKey(name) ? Optional.of(jacksons.get(name)) : Optional.empty();
     }
 
     /**
@@ -69,9 +68,7 @@ public class Jackson5 {
      * @return Jackson5 object with specified name
      */
     public static Jackson5 getOrDefault(String name) {
-        if (jacksons.containsKey(name))
-            return jacksons.get(name);
-        return get();
+        return find(name).orElse(get());
     }
 
     /**
