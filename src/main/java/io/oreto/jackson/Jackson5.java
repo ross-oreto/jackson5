@@ -25,6 +25,16 @@ public class Jackson5 {
         Jackson5 jackson5 = new Jackson5(name, supplier.get());
         jacksons.put(name, jackson5);
     }
+
+    /**
+     * Supply named Jackson5 with an ObjectMapper.
+     * @param cls Class name is used to name the new Jackson5
+     * @param supplier ObjectMapper supplier
+     */
+    public static void supply(Class<?> cls, Supplier<ObjectMapper> supplier) {
+        supply(cls.getName(), supplier);
+    }
+
     /**
      * Set the default ObjectMapper supplier
      * Should be called before the Jackson5.get method
@@ -42,6 +52,15 @@ public class Jackson5 {
      */
     public static void supply(String name, MapperConfig mapperConfig) {
         supply(name, newSupplier(mapperConfig));
+    }
+
+    /**
+     * Supply named Jackson5 with an ObjectMapper.
+     * @param cls Class name is used to name the new Jackson5
+     * @param mapperConfig ObjectMapper configuration
+     */
+    public static void supply(Class<?> cls, MapperConfig mapperConfig) {
+        supply(cls, newSupplier(mapperConfig));
     }
 
     /**
@@ -69,6 +88,45 @@ public class Jackson5 {
      */
     public static Jackson5 getOrDefault(String name) {
         return find(name).orElse(get());
+    }
+
+    /**
+     * Get the Jackson5 object by name or throw NoSuchJackson5 exception.
+     * @param name The name of the Jackson5
+     * @return Jackson5 object with specified name
+     * @throws NoSuchJackson5 If no mapping for the name exists
+     */
+    public static Jackson5 getOrThrow(String name) throws NoSuchJackson5 {
+        return find(name).orElseThrow(() -> new NoSuchJackson5(name));
+    }
+
+    /**
+     * Get a Jackson5 Optional
+     * @param cls Class name used to look up the Jackson5
+     * @return Optional Jackson5 object with specified name if the name exists.
+     * If a name has not been supplied, <tt>Optional.empty()</tt>
+     */
+    public static Optional<Jackson5> find(Class<?> cls) {
+        return find(cls.getName());
+    }
+
+    /**
+     * Get the Jackson5 object by name or the default if name doesn't exist.
+     * @param cls Class name used to look up the Jackson5
+     * @return Jackson5 object with specified name
+     */
+    public static Jackson5 getOrDefault(Class<?> cls) {
+        return getOrDefault(cls.getName());
+    }
+
+    /**
+     * Get the Jackson5 object by name or throw NoSuchJackson5 exception.
+     * @param cls Class name used to look up the Jackson5
+     * @return Jackson5 object with specified name
+     * @throws NoSuchJackson5 If no mapping for the name exists
+     */
+    public static Jackson5 getOrThrow(Class<?> cls) throws NoSuchJackson5 {
+        return getOrThrow(cls.getName());
     }
 
     /**
