@@ -18,7 +18,7 @@ Jackson5 does just that by providing a DSL to specify the json structure.
 <dependency>
   <groupId>io.github.ross-oreto.jackson5</groupId>
   <artifactId>jackson5</artifactId>
-  <version>1.0.1</version>
+  <version>1.0.5</version>
 </dependency>
 ```
 
