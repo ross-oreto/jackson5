@@ -23,8 +23,10 @@ Jackson5 does just that by providing a DSL to specify the json structure.
 ```
 
 ### The Jackson5 class
-Firstly this class is a static container for ObjectMappers. Map<name -> ObjectMapper>
-Jackson5 preserves thread safety by using the ObjectMapper reader()/writer() methods and not calling any config methods post creation.
+- Firstly this class is a static container for ObjectMappers. Map<name -> ObjectMapper>
+- Jackson5 preserves thread safety by using the ObjectMapper reader()/writer() methods and not calling any config methods post creation.
+- It also provides a handy way to create new object mappers using a fluent MapperConfig object
+
 Get a new Jackson5 using the get() method. Jackson5 will use its own ObjectMapper unless you supply it with one.
 ```
 Jackson5 jackson5 = Jackson5.get();
