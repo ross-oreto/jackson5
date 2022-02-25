@@ -211,6 +211,7 @@ public class MapperConfig {
      * @param target Class (or interface) whose annotations to effectively override
      * @param mixinSource Class (or interface) whose annotations are to
      *   be "added" to target's annotations, overriding as necessary
+     * @return The MapperConfig
      */
     public MapperConfig mixin(Class<?> target, Class<?> mixinSource) {
        this.mixins.put(target, mixinSource);
@@ -222,6 +223,7 @@ public class MapperConfig {
      * provided by this mapper; for example, by adding providers for
      * custom serializers and deserializers.
      * @param module Module to register
+     * @return The MapperConfig
      */
     public MapperConfig module(Module module) {
         this.modules.add(module);

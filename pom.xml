@@ -6,7 +6,7 @@
 
   <groupId>io.github.ross-oreto.jackson5</groupId>
   <artifactId>jackson5</artifactId>
-  <version>1.0.4</version>
+  <version>1.0.5</version>
 
   <name>jackson5</name>
   <description>A json renderer to serialize json dynamically.</description>
