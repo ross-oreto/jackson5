@@ -52,22 +52,23 @@ Jackson5 jackson5 = Jackson5.get("j5");
 ```
 
 ### Serialization Usage
- - get a new Jackson5 and render as normal json
+ - get a new Jackson5 and serialize as normal json
 ```
 Jackson5 jackson5 = Jackson5.get();
 Map data = new HashMap<String, String>(){{ put("name", "Ryzen5"); put("description", "A CPU"); }};
 String json = jackson5.string(data);
 ```
-Serialize as JSON object
+as JSON object
 ```
 JsonNode json = jackson5.json(data);
 ```
-Serialize as a Map<String, Object>
+as a Map<String, Object>
 ```
 Pojo pojo = new Pojo();
 Map<String, Object> json = jackson5.map(pojo); 
 ```
-Serialize as an object 
+
+### Deserialization
 ``` 
 Pojo pojo = jackson5.object(data, Pojo.class);
 ```
@@ -79,12 +80,20 @@ Pojo pojo = jackson5.object(data, Pojo.class);
 String json = jackson5.string(data, "{ name }");
 ```
 - exclude the name field.
-```jackson5
+```
 jackson5.string(data, Fields.Exclude("name"));
 ```
 - Only render first 10 elements
 ```
 jackson5.string(data, "list[1:10]");
+```
+- Change the root of the tree. If say the data of interest is down in class hierarchy
+```
+jackson5.string(data, Fields.Root("content.people").include("name address"));
+```
+- Chaining together (This will look at only the first element in the collection)
+```
+jackson5.string(data, Fields.Root("[1]").include("{ name address { street state }}"));
 ```
 
 For more advanced examples, look at src/test/io/oreto/jackson/Jackson5Test
