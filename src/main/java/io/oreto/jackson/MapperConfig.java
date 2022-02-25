@@ -145,6 +145,7 @@ public class MapperConfig {
     private final Map<DeserializationFeature, Boolean> deserializationFeatures = new HashMap<>();
     private final Map<SerializationFeature, Boolean> serializationFeatures = new HashMap<>();
     private final Map<PropertyAccessor, JsonAutoDetect.Visibility> visibility = new HashMap<>();
+    private final Map<Class<?>, Class<?>> mixins = new HashMap<>();
 
     /**
      * Builds the new ObjectMapper according this configuration object.
@@ -152,6 +153,7 @@ public class MapperConfig {
      */
     public ObjectMapper build() {
         ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.setMixIns(mixins());
         modules().forEach(objectMapper::registerModule);
         objectMapper.registerModule(timeModule());
         features().forEach((objectMapper::configure));
@@ -161,71 +163,146 @@ public class MapperConfig {
         return objectMapper;
     }
 
-    //  @param dateFormat Pattern string representing the date.
+    /**
+     * @param dateFormat Pattern string representing the date
+     * @return The MapperConfig
+     */
     public MapperConfig dateFormat(String dateFormat) {
         this.dateFormat = dateFormat;
         return this;
     }
-    // @param timeFormat Pattern string representing the time.
+
+    /**
+     * @param timeFormat Pattern string representing the time
+     * @return The MapperConfig
+     */
     public MapperConfig timeFormat(String timeFormat) {
         this.timeFormat = timeFormat;
         return this;
     }
-    // @param dateTimeFormat Pattern string representing the date+time.
+
+    /**
+     * @param dateTimeFormat Pattern string representing the date+time
+     * @return The MapperConfig
+     */
     public MapperConfig dateTimeFormat(String dateTimeFormat) {
         this.dateTimeFormat = dateTimeFormat;
         return this;
     }
+
+    /**
+     * Add a custom serializer to the
+     * @param tClass Class to provide serializer for
+     * @param ser The serializer
+     * @param <T> The type of class to serialize
+     * @return The MapperConfig
+     */
     public <T> MapperConfig serializer(Class<? extends T> tClass, JsonSerializer<T> ser) {
         module.addSerializer(tClass, ser);
         return this;
     }
+
+    /**
+     * Method to use for adding mix-in annotations to use for augmenting
+     * specified class or interface. All annotations from
+     * <code>mixinSource</code> are taken to override annotations
+     * that <code>target</code> (or its supertypes) has.
+     *
+     * @param target Class (or interface) whose annotations to effectively override
+     * @param mixinSource Class (or interface) whose annotations are to
+     *   be "added" to target's annotations, overriding as necessary
+     */
+    public MapperConfig mixin(Class<?> target, Class<?> mixinSource) {
+       this.mixins.put(target, mixinSource);
+       return this;
+    }
+
+    /**
+     * Method for registering a module that can extend functionality
+     * provided by this mapper; for example, by adding providers for
+     * custom serializers and deserializers.
+     * @param module Module to register
+     */
     public MapperConfig module(Module module) {
         this.modules.add(module);
         return this;
     }
+
+    /**
+     * Add feature to the configuration
+     * @param feature JsonParser.Feature to add
+     * @param state If true the feature is enabled, otherwise disabled
+     * @return The MapperConfig
+     */
     public MapperConfig feature(JsonParser.Feature feature, boolean state) {
         features.put(feature, state);
         return this;
     }
+
+    /**
+     * Add feature to the configuration
+     * @param feature DeserializationFeature to add
+     * @param state If true the feature is enabled, otherwise disabled
+     * @return The MapperConfig
+     */
     public MapperConfig feature(DeserializationFeature feature, boolean state) {
         deserializationFeatures.put(feature, state);
         return this;
     }
+
+    /**
+     * Add feature to the configuration
+     * @param feature SerializationFeature to add
+     * @param state If true the feature is enabled, otherwise disabled
+     * @return The MapperConfig
+     */
     public MapperConfig feature(SerializationFeature feature, boolean state) {
         serializationFeatures.put(feature, state);
         return this;
     }
+
+    /**
+     * Configure which properties are auto-detected
+     * Such as <code>visibility(JsonMethod.FIELD, Visibility.ANY);</code>
+     * @param propertyAccessor Type of property descriptor affected (field, getter/isGetter,
+     *     setter, creator)
+     * @param visibility Minimum visibility to require for the property descriptors of type
+     * @return The MapperConfig
+     */
     public MapperConfig visibility(PropertyAccessor propertyAccessor, JsonAutoDetect.Visibility visibility) {
        this.visibility.put(propertyAccessor, visibility);
        return this;
     }
 
-    public String dateFormat() {
+    // package protected getters
+    String dateFormat() {
        return dateFormat;
     }
-    public String timeFormat() {
+    String timeFormat() {
         return timeFormat;
     }
-    public String dateTimeFormat() {
+    String dateTimeFormat() {
         return dateTimeFormat;
     }
-    public List<Module> modules() {
+    List<Module> modules() {
         return modules;
     }
-    public Module timeModule() {
+    Map<Class<?>, Class<?>> mixins() {
+        return mixins;
+    }
+    Module timeModule() {
         return newTimeModule(dateFormat(), timeFormat(), dateTimeFormat());
     }
-    public Map<JsonParser.Feature, Boolean> features() {
+    Map<JsonParser.Feature, Boolean> features() {
         return features;
     }
-    public Map<DeserializationFeature, Boolean> deserializationFeatures() {
+    Map<DeserializationFeature, Boolean> deserializationFeatures() {
         return deserializationFeatures;
     }
-    public Map<SerializationFeature, Boolean> serializationFeatures() {
+    Map<SerializationFeature, Boolean> serializationFeatures() {
         return serializationFeatures;
     }
-    public Map<PropertyAccessor, JsonAutoDetect.Visibility> visibility() {
+    Map<PropertyAccessor, JsonAutoDetect.Visibility> visibility() {
         return this.visibility;
     }
 }
