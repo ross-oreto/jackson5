@@ -24,7 +24,7 @@ public class Jackson5Test {
     @Test
     public void simple() throws JsonProcessingException {
         Jackson5 jackson5 = Jackson5.get();
-        String json = jackson5.string(new HashMap<String, String>(){{ put("test", "t1"); }});
+        String json = jackson5.serialize(new HashMap<String, String>(){{ put("test", "t1"); }});
         assertEquals("{\"test\":\"t1\"}", json);
     }
 
@@ -37,11 +37,11 @@ public class Jackson5Test {
                 , new Pojo("test2")
         );
 
-        String json = jackson5.string(items, Fields.Root("[1]").exclude("pojos"));
+        String json = jackson5.serialize(items, Fields.Root("[1]").exclude("pojos"));
         assertEquals("{\"name\":\"test1\",\"description\":null}", json);
 
         assertEquals("[{\"name\":\"test1\",\"description\":null},{\"name\":\"test2\",\"description\":null}]"
-                , jackson5.string(items, Fields.Exclude("pojos")));
+                , jackson5.serialize(items, Fields.Exclude("pojos")));
     }
 
     @Test
@@ -52,10 +52,10 @@ public class Jackson5Test {
         Jackson5 jackson5 = Jackson5.get();
 
         assertEquals("{\"name\":\"test1\",\"description\":\"a\"}"
-                , jackson5.string(pojos, Fields.Root("[1]").exclude("pojos")));
+                , jackson5.serialize(pojos, Fields.Root("[1]").exclude("pojos")));
 
         assertEquals("[{\"name\":\"test1\"},{\"name\":\"test2\"}]"
-                , jackson5.string(pojos, Fields.Root("[1:2]").include("name").exclude("pojos")));
+                , jackson5.serialize(pojos, Fields.Root("[1:2]").include("name").exclude("pojos")));
     }
 
     @Test
@@ -66,10 +66,10 @@ public class Jackson5Test {
 
         Jackson5 jackson5 = Jackson5.get();
         assertEquals("[{\"description\":\"a\"},{\"description\":\"b\"},{\"description\":\"c\"}]"
-                , jackson5.string(pojos, Fields.Include("description").exclude("pojos")));
+                , jackson5.serialize(pojos, Fields.Include("description").exclude("pojos")));
 
         assertEquals("[{\"description\":\"a\"},{\"description\":\"b\"},{\"description\":\"c\"}]"
-                , jackson5.string(pojos, Fields.Exclude("name pojos")));
+                , jackson5.serialize(pojos, Fields.Exclude("name pojos")));
     }
 
     @Test
@@ -82,10 +82,10 @@ public class Jackson5Test {
         Jackson5 jackson5 = Jackson5.get();
 
         assertEquals("[{\"name\":\"test1\"},{\"name\":\"test2\"}]"
-                , jackson5.string(pojos, Fields.Include("name")));
+                , jackson5.serialize(pojos, Fields.Include("name")));
 
         assertEquals("{\"description\":\"a\"}"
-                , jackson5.string(pojos, Fields.Root("[1]").include("{ description }")));
+                , jackson5.serialize(pojos, Fields.Root("[1]").include("{ description }")));
     }
 
     @Test
@@ -102,7 +102,7 @@ public class Jackson5Test {
         Jackson5 jackson5 = Jackson5.get();
         assertEquals("[{\"name\":\"test1\",\"pojos\":[{\"name\":\"a\"},{\"name\":\"b\"}," +
                         "{\"name\":\"c\"}]},{\"name\":\"test2\",\"pojos\":[{\"name\":\"d\"},{\"name\":\"e\"},{\"name\":\"f\"}]}]"
-                , jackson5.string(items, Fields.Include("{\n\rname\npojos{\r\nname\r} \t} ")));
+                , jackson5.serialize(items, Fields.Include("{\n\rname\npojos{\r\nname\r} \t} ")));
 
         assertEquals( "[{\"name\":\"test1\",\"pojos\":[{\"name\":\"a\",\"pojos\":" +
                         "[{\"name\":\"1\"},{\"name\":\"2\"}]},{\"name\":\"b\",\"pojos\":" +
@@ -110,7 +110,7 @@ public class Jackson5Test {
                         "[{\"name\":\"5\"},{\"name\":\"6\"}]}]},{\"name\":\"test2\",\"pojos\":" +
                         "[{\"name\":\"d\",\"pojos\":[{\"name\":\"7\"},{\"name\":\"8\"}]},{\"name\":\"e\",\"pojos\":" +
                         "[]},{\"name\":\"f\",\"pojos\":[]}]}]"
-                , jackson5.string(items, Fields.Include("{ name pojos{ name pojos {name} }}")));
+                , jackson5.serialize(items, Fields.Include("{ name pojos{ name pojos {name} }}")));
     }
 
     @Test
@@ -121,7 +121,7 @@ public class Jackson5Test {
         );
         Jackson5 jackson5 = Jackson5.get();
 
-        String json = jackson5.string(items, Fields.Include("{ name pojo { name pojos {name} } }"));
+        String json = jackson5.serialize(items, Fields.Include("{ name pojo { name pojos {name} } }"));
         assertEquals("[{\"name\":\"pojo1\",\"pojo\":{\"name\":\"test1\",\"pojos\":[]}}" +
                         ",{\"name\":\"pojo2\",\"pojo\":{\"name\":\"test2\",\"pojos\":[{\"name\":\"a\"},{\"name\":\"b\"}]}}]"
                 , json);
@@ -138,7 +138,7 @@ public class Jackson5Test {
         assertEquals("[{\"name\":\"pojo1\",\"pojo\":{\"name\":\"test1\",\"description\":null,\"pojos\":[]}}," +
                         "{\"name\":\"pojo2\",\"pojo\":{\"name\":\"test2\",\"description\":null,\"pojos\":" +
                         "[{\"description\":null,\"pojos\":[]},{\"description\":null,\"pojos\":[]}]}}]"
-                , jackson5.string(items, Fields.Exclude("{ pojo { pojos {name} } }")));
+                , jackson5.serialize(items, Fields.Exclude("{ pojo { pojos {name} } }")));
     }
 
     @Test
@@ -149,7 +149,7 @@ public class Jackson5Test {
                         , new Pojo1("f"));
 
         Jackson5 jackson5 = Jackson5.get();
-        String json = jackson5.string(pojo, Fields.Include("name pojos[1] { name pojos[2:4] }"));
+        String json = jackson5.serialize(pojo, Fields.Include("name pojos[1] { name pojos[2:4] }"));
         assertEquals("{\"name\":\"test2\",\"pojos\":[{\"name\":\"d\",\"pojos\":[{\"name\":\"8\"},{\"name\":\"9\"},{\"name\":\"10\"}]}]}"
                 ,json);
     }
@@ -162,7 +162,7 @@ public class Jackson5Test {
                         , new Pojo1("f", "bar"));
 
         Jackson5 jackson5 = Jackson5.get();
-        String json = jackson5.string(pojo, Fields.Exclude("name pojos[1] { name pojos[2:4] }"));
+        String json = jackson5.serialize(pojo, Fields.Exclude("name pojos[1] { name pojos[2:4] }"));
         assertEquals("{\"description\":\"b\",\"pojos\":[{\"description\":null,\"pojos\":[{\"name\":\"7\"},{\"name\":\"11\"},{\"name\":\"12\"}]},{\"name\":\"e\",\"description\":\"foo\",\"pojos\":[]},{\"name\":\"f\",\"description\":\"bar\",\"pojos\":[]}]}"
                 ,json);
     }
@@ -178,10 +178,10 @@ public class Jackson5Test {
 
         Jackson5 jackson5 = Jackson5.get();
 
-        String json = jackson5.string(pojoDate);
-        PojoDate pojoDate1 = jackson5.object(json, PojoDate.class);
+        String json = jackson5.serialize(pojoDate);
+        PojoDate pojoDate1 = jackson5.deserialize(json, PojoDate.class);
 
-        assertEquals(jackson5.string(pojoDate.getDate()), jackson5.string(pojoDate1.getDate()));
+        assertEquals(jackson5.serialize(pojoDate.getDate()), jackson5.serialize(pojoDate1.getDate()));
     }
 
     @Test
@@ -237,17 +237,32 @@ public class Jackson5Test {
         assertEquals("test", jsonNode.get("name").asText());
         assertEquals(1, jsonNode.size());
 
-        Pojo pojo = jackson5.object(new HashMap<String, Object>(){{ put("name", "test"); }}, Pojo.class);
+        Pojo pojo = jackson5.convert(new HashMap<String, Object>(){{ put("name", "test"); }}, Pojo.class);
         assertEquals("test", pojo.getName());
 
         Map<String, Object> map = jackson5.map(json);
         assertEquals(jsonNode.get("name").asText(), map.get("name"));
 
-        String test = jackson5.string(json, Fields.Include("name"));
+        String test = jackson5.serialize(json, Fields.Include("name"));
         assertEquals("{\"name\":\"test\"}", test);
 
-        Pojo pojo1 = jackson5.object(json, Pojo.class);
+        Pojo pojo1 = jackson5.deserialize(json, Pojo.class);
         assertEquals("test", pojo1.getName());
         assertEquals("description", pojo1.getDescription());
+    }
+
+    @Test
+    public void test14() throws IOException {
+        Pojo pojo = new Pojo("test2", "b")
+                .withPojos(new Pojo1("d").withPojos("7", "8", "9", "10", "11", "12")
+                        , new Pojo1("e")
+                        , new Pojo1("f"));
+
+        Jackson5 jackson5 = Jackson5.get();
+        JsonNode json = jackson5.json(pojo, Fields.Root("pojos[1].pojos"));
+        assertEquals("7", json.get(0).get("name").asText());
+
+        List<Pojo1> pojo1s = jackson5.convertCollection(json, Pojo1.class);
+        assertEquals("7", pojo1s.get(0).getName());
     }
 }

@@ -4,7 +4,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 class Util {
@@ -52,34 +52,6 @@ class Util {
             } catch (NumberFormatException ignored) { }
             return Optional.empty();
         }
-    }
-
-    static class MultiMap<K, V> {
-        private final Map<K, List<V>> map = new HashMap<>();
-
-        final void put(K k, V v) {
-            if ((v instanceof String && !"".equals(v)) || (!(v instanceof String) && v != null)) {
-                if (map.containsKey(k)) map.get(k).add(v);
-                else map.put(k, new ArrayList<V>() {{
-                    add(v);
-                }});
-            }
-        }
-
-        /**
-         * Sort each list in the map
-         * @param c The comparator used by sort.
-         * @return A self referencing MultiMap to support a fluent api.
-         */
-        MultiMap<K, V> sort(Comparator<? super V> c) {
-            map.forEach(((k, vs) -> vs.sort(c)));
-            return this;
-        }
-
-        Map<K, List<V>> asMap() { return map; }
-    }
-
-    static class MultiString<K> extends MultiMap<K, String> {
     }
 
     static class IO {

@@ -12,6 +12,7 @@ import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
+import com.fasterxml.jackson.module.afterburner.AfterburnerModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
 import java.io.IOException;
@@ -123,6 +124,7 @@ public class MapperConfig {
                 .dateTimeFormat(DEFAULT_DATE_TIME_PATTERN)
                 .module(new Jdk8Module())
                 .module(new ParameterNamesModule())
+                .module(new AfterburnerModule())
                 .feature(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
                 .feature(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
                 .feature(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -152,15 +154,15 @@ public class MapperConfig {
      * @return A new ObjectMapper
      */
     public ObjectMapper build() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.setMixIns(mixins());
-        modules().forEach(objectMapper::registerModule);
-        objectMapper.registerModule(timeModule());
-        features().forEach((objectMapper::configure));
-        serializationFeatures().forEach((objectMapper::configure));
-        deserializationFeatures().forEach((objectMapper::configure));
-        visibility().forEach((objectMapper::setVisibility));
-        return objectMapper;
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setMixIns(mixins());
+        modules().forEach(mapper::registerModule);
+        mapper.registerModule(timeModule());
+        features().forEach((mapper::configure));
+        serializationFeatures().forEach((mapper::configure));
+        deserializationFeatures().forEach((mapper::configure));
+        visibility().forEach((mapper::setVisibility));
+        return mapper;
     }
 
     /**

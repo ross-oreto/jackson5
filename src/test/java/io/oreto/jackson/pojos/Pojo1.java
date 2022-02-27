@@ -5,9 +5,11 @@ import java.util.Collections;
 import java.util.List;
 
 public class Pojo1 {
-    private final String name;
+    private String name;
     private String description;
-    private final List<Pojo2> pojos;
+    private List<Pojo2> pojos;
+
+    public Pojo1() {}
 
     public Pojo1(String name) {
         this.name = name;

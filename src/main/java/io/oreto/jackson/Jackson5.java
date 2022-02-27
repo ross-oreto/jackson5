@@ -4,9 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -161,13 +163,13 @@ public class Jackson5 {
     // *****************************************************************************************************
 
     private final String name;
-    private final ObjectMapper objectMapper;
-    private boolean pretty;
+    private final ObjectMapper mapper;
+    private final FieldsDSL fieldsDSL;
 
-    protected Jackson5(String name, ObjectMapper objectMapper) {
+    protected Jackson5(String name, ObjectMapper mapper) {
         this.name = name;
-        this.objectMapper = objectMapper;
-        this.pretty = false;
+        this.mapper = mapper;
+        this.fieldsDSL = new FieldsDSL(mapper);
     }
 
     public String getName() {
@@ -179,25 +181,8 @@ public class Jackson5 {
         return getName();
     }
 
-    private JsonRenderer renderer() {
-        return new JsonRenderer(objectMapper, pretty);
-    }
-
-    /**
-     * pretty print JSON string according to boolean parameter
-     * @param pretty If true pretty print JSON
-     * @return This Jackson5 object
-     */
-    public Jackson5 pretty(boolean pretty) {
-        this.pretty = pretty;
-        return this;
-    }
-    /**
-     * pretty print JSON string
-     * @return This Jackson5 object
-     */
-    public Jackson5 pretty() {
-        return pretty(true);
+    private FieldsDSL renderer() {
+        return fieldsDSL;
     }
 
     /**
@@ -235,23 +220,37 @@ public class Jackson5 {
     /**
      * Serialize Object as JSON string
      * @param o The object to serialize
+     * @param pretty If true JSON string will be pretty printed, otherwise ugly
      * @return JSON String representing the Object o
      * @throws JsonProcessingException If errors occur during serialization
      */
-    public String string(Object o) throws JsonProcessingException {
-        return renderer().render(o);
+    public String serialize(Object o, boolean pretty) throws JsonProcessingException {
+        return pretty
+                ? mapper.writerWithDefaultPrettyPrinter().writeValueAsString(o)
+                : mapper.writer().writeValueAsString(o);
     }
 
     /**
-     *
+     * Serialize Object as JSON string
+     * @param o The object to serialize
+     * @param fields Fields which are included/excluded in the JSON string
+     * @param pretty If true JSON string will be pretty printed, otherwise ugly
+     * @return JSON String representing the Object o
+     * @throws JsonProcessingException If errors occur during serialization
+     */
+    public String serialize(Object o, IFields fields, boolean pretty) throws JsonProcessingException {
+        return pretty ? renderer().json(o, fields).toPrettyString() : renderer().json(o, fields).toString();
+    }
+
+    /**
      * Serialize Object as JSON string
      * @param o The object to serialize
      * @param fields Fields which are included/excluded in the JSON string
      * @return JSON String representing the Object o
      * @throws JsonProcessingException If errors occur during serialization
      */
-    public String string(Object o, IFields fields) throws JsonProcessingException {
-        return renderer().render(o, fields);
+    public String serialize(Object o, IFields fields) throws JsonProcessingException {
+        return renderer().json(o, fields).toString();
     }
 
     /**
@@ -261,8 +260,18 @@ public class Jackson5 {
      * @return JSON String representing the Object o
      * @throws JsonProcessingException If errors occur during serialization
      */
-    public String string(Object o, String fields) throws JsonProcessingException {
-        return renderer().render(o, Fields.Include(fields));
+    public String serialize(Object o, String fields) throws JsonProcessingException {
+        return renderer().json(o, Fields.Include(fields)).toString();
+    }
+
+    /**
+     * Serialize Object as JSON string
+     * @param o The object to serialize
+     * @return JSON String representing the Object o
+     * @throws JsonProcessingException If errors occur during serialization
+     */
+    public String serialize(Object o) throws JsonProcessingException {
+        return mapper.writer().writeValueAsString(o);
     }
 
     /**
@@ -282,28 +291,28 @@ public class Jackson5 {
      * @return Map representation of object o
      */
     public Map<String, Object> map(Object o) {
-        return objectMapper.convertValue(o, new TypeReference<Map<String, Object>>() {});
+        return mapper.convertValue(o, new TypeReference<Map<String, Object>>() {});
     }
 
     /**
      * Convert JSON String to a Map
-     * @param s JSON String to convert
+     * @param json JSON String to convert
      * @param fields fields which are included/excluded in the Map
      * @return Map representation of the JSON string
      * @throws IOException If errors occur during serialization
      */
-    public Map<String, Object> map(String s, IFields fields) throws IOException {
-        return map(json(s, fields));
+    public Map<String, Object> map(CharSequence json, IFields fields) throws IOException {
+        return map(json(json, fields));
     }
 
     /**
      * Convert JSON String to a Map
-     * @param s JSON String to convert
+     * @param json JSON String to convert
      * @return Map representation of the JSON string
      * @throws IOException If errors occur during serialization
      */
-    public Map<String, Object> map(String s) throws IOException {
-        return objectMapper.readValue(s, new TypeReference<Map<String, Object>>() {});
+    public Map<String, Object> map(CharSequence json) throws IOException {
+        return mapper.readValue(json.toString(), new TypeReference<Map<String, Object>>() {});
     }
 
     /**
@@ -313,8 +322,8 @@ public class Jackson5 {
      * @param <T> Type of the new object
      * @return New typed object representing the supplied map
      */
-    public <T> T object(Object o, Class<T> tClass) {
-        return objectMapper.convertValue(o, tClass);
+    public <T> T convert(Object o, Class<T> tClass) {
+        return mapper.convertValue(o, tClass);
     }
 
     /**
@@ -324,34 +333,107 @@ public class Jackson5 {
      * @param <T> Type of the new object
      * @param fields fields which are included/excluded in the class T
      * @return New typed object representing the supplied map
-     * @throws IOException If errors occur during serialization
+     * @throws IOException If errors occur during conversion
      */
-    public <T> T object(Object o, Class<T> tClass, IFields fields) throws IOException {
-        return objectMapper.reader().readValue(renderer().json(o, fields), tClass);
+    public <T> T convert(Object o, Class<T> tClass, IFields fields) throws IOException {
+        return convert(renderer().json(o, fields), tClass);
     }
 
     /**
      * Create new object type from JSON string using specified class type
-     * @param s JSON String to convert
+     * @param json JSON String to deserialize
      * @param tClass Class type of the new object
      * @param <T> Type of the new object
      * @return New typed object representing the supplied JSON string
-     * @throws IOException If errors occur during serialization
+     * @throws IOException If errors occur during deserialization
      */
-    public <T> T object(CharSequence s, Class<T> tClass) throws IOException {
-        return objectMapper.reader().readValue(s.toString(), tClass);
+    public <T> T deserialize(CharSequence json, Class<T> tClass) throws IOException {
+        return mapper.reader().readValue(json.toString(), tClass);
     }
 
     /**
      * Create new object type from JSON string using specified class type
-     * @param s JSON String to convert
+     * @param json JSON String to deserialize
      * @param tClass Class type of the new object
      * @param <T> Type of the new object
      * @param fields fields which are included/excluded in the class T
      * @return New typed object representing the supplied JSON string
      * @throws JsonProcessingException If errors occur during serialization
      */
-    public <T> T object(CharSequence s, Class<T> tClass, IFields fields) throws JsonProcessingException {
-        return object(json(s, fields), tClass);
+    public <T> T deserialize(CharSequence json, Class<T> tClass, IFields fields) throws IOException {
+        return convert(json(json, fields), tClass);
+    }
+
+    /**
+     * Convert an iterable collection into a new list of type T
+     * @param iterable The collection being converted
+     * @param tClass The type of list to return
+     * @param <T> The type of the returned list
+     * @return The resulting new typed list
+     */
+    public <T> List<T> convertCollection(Iterable<?> iterable, Class<?> tClass) {
+        return mapper.convertValue(iterable, TypeFactory.defaultInstance().constructCollectionType(List.class, tClass));
+    }
+
+    /**
+     * Convert an array into a new list of type T
+     * @param array The array being converted
+     * @param tClass The type of list to return
+     * @param <T> The type of the returned list
+     * @return The resulting new typed list
+     */
+    public <T> List<T> convertCollection(Object[] array, Class<?> tClass) {
+        return mapper.convertValue(array, TypeFactory.defaultInstance().constructCollectionType(List.class, tClass));
+    }
+
+    /**
+     * Convert an iterable collection into a new list of type T
+     * @param iterable The collection being converted
+     * @param tClass The type of list to return
+     * @param <T> The type of the returned list
+     * @param fields fields which are included/excluded in the class T
+     * @return The resulting new typed list
+     * @throws IOException If errors occur during conversion
+     */
+    public <T> List<T> convertCollection(Iterable<?> iterable, Class<T> tClass, IFields fields) throws IOException {
+        return convertCollection(renderer().json(iterable, fields), tClass);
+    }
+
+    /**
+     * Convert an array into a new list of type T
+     * @param array The array being converted
+     * @param tClass The type of list to return
+     * @param <T> The type of the returned list
+     * @param fields fields which are included/excluded in the class T
+     * @return The resulting new typed list
+     * @throws IOException If errors occur during conversion
+     */
+    public <T> List<T> convertCollection(Object[] array, Class<T> tClass, IFields fields) throws IOException {
+        return convertCollection(renderer().json(array, fields), tClass);
+    }
+
+    /**
+     * Create new List from the JSON string using the specified class type
+     * @param json JSON String to deserialize
+     * @param tClass Class type of the new list
+     * @param <T> Type of the new list
+     * @return New typed list representing the supplied JSON string
+     * @throws IOException If errors occur during deserialization
+     */
+    public <T> List<T> deserializeCollection(CharSequence json, Class<T> tClass) throws IOException {
+        return mapper.readValue(json.toString(), TypeFactory.defaultInstance().constructCollectionType(List.class, tClass));
+    }
+
+    /**
+     * Create new List from the JSON string using the specified class type
+     * @param json JSON String to deserialize
+     * @param tClass Class type of the new list
+     * @param <T> Type of the new list
+     * @param fields fields which are included/excluded in the class T
+     * @return New typed list representing the supplied JSON string
+     * @throws IOException If errors occur during deserialization
+     */
+    public <T> List<T> deserializeCollection(CharSequence json, Class<T> tClass, IFields fields) throws IOException {
+        return convertCollection(renderer().json(json, fields), tClass);
     }
 }

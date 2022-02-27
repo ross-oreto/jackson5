@@ -52,4 +52,22 @@ public class Pojo {
     public void setPojos(List<Pojo1> pojos) {
         this.pojos = pojos;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Pojo pojo = (Pojo) o;
+
+        if (getName() != null ? !getName().equals(pojo.getName()) : pojo.getName() != null) return false;
+        return getDescription() != null ? getDescription().equals(pojo.getDescription()) : pojo.getDescription() == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = getName() != null ? getName().hashCode() : 0;
+        result = 31 * result + (getDescription() != null ? getDescription().hashCode() : 0);
+        return result;
+    }
 }
