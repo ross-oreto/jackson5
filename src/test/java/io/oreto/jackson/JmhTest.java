@@ -4,9 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.oreto.jackson.pojos.JPojo1;
-import io.oreto.jackson.pojos.JPojo2;
 import io.oreto.jackson.pojos.Pojo1;
+import io.oreto.jackson.pojos.Pojo2;
+import io.oreto.jackson.util.TestUtils;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
@@ -18,7 +18,6 @@ import org.openjdk.jmh.runner.options.TimeValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 @State(Scope.Benchmark)
@@ -41,30 +40,20 @@ public class JmhTest {
 
     static ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     static Jackson5 jackson5 = Jackson5.get();
-    static List<JPojo1> pojos = new ArrayList<>();
-    static List<JPojo2> pojos2 = new ArrayList<>();
+    static List<Pojo1> pojos = new ArrayList<>();
+    static List<Pojo2> pojos2 = new ArrayList<>();
     static String jsonString;
 
     static  {
         for(int i = 0; i < 1000; i++) {
-            pojos.add(new JPojo1(random(20).toString(), random(20).toString(), random(20).toString()));
-            pojos2.add(new JPojo2(random(20).toString(), random(20).toString(), random(20).toString()));
+            pojos.add(new Pojo1(TestUtils.randomString(20).toString(), TestUtils.randomString(20).toString(), TestUtils.randomString(20).toString()));
+            pojos2.add(new Pojo2(TestUtils.randomString(20).toString(), TestUtils.randomString(20).toString(), TestUtils.randomString(20).toString()));
         }
         try {
             jsonString = jackson5.serialize(pojos2);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
-    }
-
-    public static StringBuilder random(int size) {
-        int leftLimit = 48; // numeral '0'
-        int rightLimit = 122; // letter 'z'
-        Random random = new Random();
-        return random.ints(leftLimit, rightLimit + 1)
-                .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
-                .limit(size)
-                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append);
     }
 
     @Benchmark
@@ -88,6 +77,6 @@ public class JmhTest {
     @Benchmark
     @OutputTimeUnit(TimeUnit.MILLISECONDS)
     public void jackson5DeSerialize(Blackhole blackhole) throws IOException {
-        blackhole.consume(jackson5.deserializeCollection(jsonString, JPojo2.class, Fields.Exclude("s2 s3")));
+        blackhole.consume(jackson5.deserializeCollection(jsonString, Pojo2.class, Fields.Exclude("s2 s3")));
     }
 }

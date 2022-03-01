@@ -2,181 +2,154 @@ package io.oreto.jackson;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import io.oreto.jackson.pojos.Pojo;
-import io.oreto.jackson.pojos.Pojo1;
-import io.oreto.jackson.pojos.Pojo3;
+import com.fasterxml.jackson.databind.node.NullNode;
+import io.oreto.jackson.models.Account;
+import io.oreto.jackson.models.Item;
+import io.oreto.jackson.models.Person;
+import io.oreto.jackson.models.Purchase;
 import io.oreto.jackson.pojos.PojoDate;
+import io.oreto.jackson.util.TestUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class Jackson5Test {
+    static final List<Person> people = TestUtils.randomPeople(20);
+
+    static Jackson5 jackson5 = Jackson5.get();
 
     @Test
-    public void simple() throws JsonProcessingException {
-        Jackson5 jackson5 = Jackson5.get();
+    public void badInput() throws IOException {
+        assertEquals("null", jackson5.serialize(null, ""));
+        assertEquals("null", jackson5.serialize(null, Fields.Include("name")));
+        assertEquals(NullNode.getInstance(), jackson5.json(null, Fields.Include("name")));
+    }
+
+    @Test
+    public void serializeMap() throws JsonProcessingException {
         String json = jackson5.serialize(new HashMap<String, String>(){{ put("test", "t1"); }});
         assertEquals("{\"test\":\"t1\"}", json);
     }
 
     @Test
-    public void test1() throws JsonProcessingException {
-        Jackson5 jackson5 = Jackson5.get();
-
-        List<Pojo> items = Lists.of(
-                new Pojo("test1")
-                , new Pojo("test2")
-        );
-
-        String json = jackson5.serialize(items, Fields.Root("[1]").exclude("pojos"));
-        assertEquals("{\"name\":\"test1\",\"description\":null}", json);
-
-        assertEquals("[{\"name\":\"test1\",\"description\":null},{\"name\":\"test2\",\"description\":null}]"
-                , jackson5.serialize(items, Fields.Exclude("pojos")));
+    public void deserializeMap() throws IOException {
+        Map<String, Object> map = jackson5.map("{\"test\":\"t1\"}");
+        assertEquals(new HashMap<String, Object>(){{ put("test", "t1"); }}, map);
     }
 
     @Test
-    public void test2() throws JsonProcessingException {
-        List<Pojo> pojos = Lists.of(new Pojo("test1", "a")
-                , new Pojo("test2", "b")
-                , new Pojo("test3", "c"));
-        Jackson5 jackson5 = Jackson5.get();
-
-        assertEquals("{\"name\":\"test1\",\"description\":\"a\"}"
-                , jackson5.serialize(pojos, Fields.Root("[1]").exclude("pojos")));
-
-        assertEquals("[{\"name\":\"test1\"},{\"name\":\"test2\"}]"
-                , jackson5.serialize(pojos, Fields.Root("[1:2]").include("name").exclude("pojos")));
+    public void simpleExclude() throws JsonProcessingException {
+       JsonNode jsonNode = jackson5.json(people, Fields.Exclude("firstName"));
+       jsonNode.forEach(it -> assertFalse(it.has("firstName") && it.size() > 1));
     }
 
     @Test
-    public void test3() throws JsonProcessingException {
-        List<Pojo> pojos = Lists.of(new Pojo("test1", "a")
-                , new Pojo("test2", "b")
-                , new Pojo("test3", "c"));
-
-        Jackson5 jackson5 = Jackson5.get();
-        assertEquals("[{\"description\":\"a\"},{\"description\":\"b\"},{\"description\":\"c\"}]"
-                , jackson5.serialize(pojos, Fields.Include("description").exclude("pojos")));
-
-        assertEquals("[{\"description\":\"a\"},{\"description\":\"b\"},{\"description\":\"c\"}]"
-                , jackson5.serialize(pojos, Fields.Exclude("name pojos")));
+    public void simpleInclude() throws JsonProcessingException {
+        JsonNode jsonNode = jackson5.json(people, "firstName");
+        jsonNode.forEach(it -> assertTrue(it.has("firstName") && it.size() == 1));
     }
 
     @Test
-    public void test4() throws JsonProcessingException {
-        List<Pojo> pojos = Lists.of(
-                new Pojo("test1", "a")
-                , new Pojo("test2", "b")
-        );
-
-        Jackson5 jackson5 = Jackson5.get();
-
-        assertEquals("[{\"name\":\"test1\"},{\"name\":\"test2\"}]"
-                , jackson5.serialize(pojos, Fields.Include("name")));
-
-        assertEquals("{\"description\":\"a\"}"
-                , jackson5.serialize(pojos, Fields.Root("[1]").include("{ description }")));
+    public void excludePurchaseItemNames() throws JsonProcessingException {
+        JsonNode jsonNode = jackson5.json(people, Fields.Exclude("purchases.items.name"));
+        jsonNode.forEach(person -> person.get("purchases")
+                .forEach(purchase -> purchase.get("items")
+                        .forEach(item -> assertFalse(item.has("name")))));
     }
 
     @Test
-    public void test5() throws JsonProcessingException {
-        List<Pojo> items = Lists.of(
-                new Pojo("test1", "a")
-                        .withPojos(new Pojo1("a").withPojos("1", "2")
-                                , new Pojo1("b").withPojos("3", "4")
-                                , new Pojo1("c").withPojos("5", "6"))
-                , new Pojo("test2", "b")
-                        .withPojos(new Pojo1("d").withPojos("7", "8"), new Pojo1("e"), new Pojo1("f"))
-        );
-
-        Jackson5 jackson5 = Jackson5.get();
-        assertEquals("[{\"name\":\"test1\",\"pojos\":[{\"name\":\"a\"},{\"name\":\"b\"}," +
-                        "{\"name\":\"c\"}]},{\"name\":\"test2\",\"pojos\":[{\"name\":\"d\"},{\"name\":\"e\"},{\"name\":\"f\"}]}]"
-                , jackson5.serialize(items, Fields.Include("{\n\rname\npojos{\r\nname\r} \t} ")));
-
-        assertEquals( "[{\"name\":\"test1\",\"pojos\":[{\"name\":\"a\",\"pojos\":" +
-                        "[{\"name\":\"1\"},{\"name\":\"2\"}]},{\"name\":\"b\",\"pojos\":" +
-                        "[{\"name\":\"3\"},{\"name\":\"4\"}]},{\"name\":\"c\",\"pojos\":" +
-                        "[{\"name\":\"5\"},{\"name\":\"6\"}]}]},{\"name\":\"test2\",\"pojos\":" +
-                        "[{\"name\":\"d\",\"pojos\":[{\"name\":\"7\"},{\"name\":\"8\"}]},{\"name\":\"e\",\"pojos\":" +
-                        "[]},{\"name\":\"f\",\"pojos\":[]}]}]"
-                , jackson5.serialize(items, Fields.Include("{ name pojos{ name pojos {name} }}")));
+    public void includePurchaseItemNames() throws JsonProcessingException {
+        JsonNode jsonNode = jackson5.json(people, Fields.Include("purchases.items.name"));
+        jsonNode.forEach(person -> person.get("purchases")
+                .forEach(purchase -> purchase.get("items")
+                        .forEach(item -> assertTrue(item.has("name") && item.size() == 1))));
     }
 
     @Test
-    public void test6() throws JsonProcessingException {
-        List<Pojo3> items = Lists.of(
-                new Pojo3("pojo1", new Pojo("test1"))
-                , new Pojo3("pojo2", new Pojo("test2").withPojos("a", "b"))
-        );
-        Jackson5 jackson5 = Jackson5.get();
-
-        String json = jackson5.serialize(items, Fields.Include("{ name pojo { name pojos {name} } }"));
-        assertEquals("[{\"name\":\"pojo1\",\"pojo\":{\"name\":\"test1\",\"pojos\":[]}}" +
-                        ",{\"name\":\"pojo2\",\"pojo\":{\"name\":\"test2\",\"pojos\":[{\"name\":\"a\"},{\"name\":\"b\"}]}}]"
-                , json);
+    public void excludePurchaseItemData() throws IOException {
+        List<Person> personList =
+                jackson5.convertCollection(people, Person.class, Fields.Exclude("purchases.items{ name price }"));
+        personList.forEach(person -> person.getPurchases().forEach(purchase -> purchase.getItems().forEach(item ->
+                assertTrue(item.getName() == null && item.getPrice() == null))));
     }
 
     @Test
-    public void test7() throws JsonProcessingException {
-        List<Pojo3> items = Lists.of(
-                new Pojo3("pojo1", new Pojo("test1"))
-                , new Pojo3("pojo2", new Pojo("test2").withPojos("a", "b"))
-        );
-        Jackson5 jackson5 = Jackson5.get();
-
-        assertEquals("[{\"name\":\"pojo1\",\"pojo\":{\"name\":\"test1\",\"description\":null,\"pojos\":[]}}," +
-                        "{\"name\":\"pojo2\",\"pojo\":{\"name\":\"test2\",\"description\":null,\"pojos\":" +
-                        "[{\"description\":null,\"pojos\":[]},{\"description\":null,\"pojos\":[]}]}}]"
-                , jackson5.serialize(items, Fields.Exclude("{ pojo { pojos {name} } }")));
+    public void includePurchaseItemData() throws IOException {
+        List<Person> personList =
+                jackson5.convertCollection(people, Person.class, Fields.Include("purchases.items{ name price }"));
+        personList.forEach(person -> person.getPurchases().forEach(purchase -> purchase.getItems().forEach(item ->
+                assertTrue(Objects.nonNull(item.getName()) && Objects.nonNull(item.getPrice())
+                        && item.getId() == null ))));
     }
 
     @Test
-    public void test8() throws JsonProcessingException {
-        Pojo pojo = new Pojo("test2", "b")
-                .withPojos(new Pojo1("d").withPojos("7", "8", "9", "10", "11", "12")
-                        , new Pojo1("e")
-                        , new Pojo1("f"));
-
-        Jackson5 jackson5 = Jackson5.get();
-        String json = jackson5.serialize(pojo, Fields.Include("name pojos[1] { name pojos[2:4] }"));
-        assertEquals("{\"name\":\"test2\",\"pojos\":[{\"name\":\"d\",\"pojos\":[{\"name\":\"8\"},{\"name\":\"9\"},{\"name\":\"10\"}]}]}"
-                ,json);
+    public void viewAccount() throws IOException {
+        Account account = jackson5.convert(people, Account.class, Fields.Root("[0].account"));
+        assertTrue(Objects.nonNull(account.getUsername()));
     }
 
     @Test
-    public void test9() throws JsonProcessingException {
-        Pojo pojo = new Pojo("test2", "b")
-                .withPojos(new Pojo1("d").withPojos("7", "8", "9", "10", "11", "12")
-                        , new Pojo1("e", "foo")
-                        , new Pojo1("f", "bar"));
-
-        Jackson5 jackson5 = Jackson5.get();
-        String json = jackson5.serialize(pojo, Fields.Exclude("name pojos[1] { name pojos[2:4] }"));
-        assertEquals("{\"description\":\"b\",\"pojos\":[{\"description\":null,\"pojos\":[{\"name\":\"7\"},{\"name\":\"11\"},{\"name\":\"12\"}]},{\"name\":\"e\",\"description\":\"foo\",\"pojos\":[]},{\"name\":\"f\",\"description\":\"bar\",\"pojos\":[]}]}"
-                ,json);
+    public void nameAndAddress() throws IOException {
+        Person person = jackson5.convert(people
+                , Person.class
+                , Fields.Root("[0]").include("{ firstName primaryAddress }"));
+        assertTrue(Objects.nonNull(person.getFirstName()) && Objects.nonNull(person.getPrimaryAddress()));
     }
 
     @Test
-    public void test10() throws IOException {
+    public void noNameAndAddress() throws IOException {
+        Person person = jackson5.convert(people
+                , Person.class
+                , Fields.Root("[0]").exclude("{ firstName primaryAddress addresses[0:] }"));
+        assertTrue(Objects.nonNull(person.getLastName())
+                && person.getPrimaryAddress() == null
+                && person.getAddresses().isEmpty() );
+    }
+
+    @Test
+    public void lastItem() throws IOException {
+        Person p = people.get(people.size() - 1);
+        Purchase purchase = p.getPurchases().get(p.getPurchases().size() - 1);
+        Item item = purchase.getItems().get(purchase.getItems().size() - 1);
+
+        Person person = jackson5.convert(people
+                , Person.class
+                , Fields.Root("[-1]").include("{ purchases[-1].items[-1] }"));
+        assertEquals(item.getName(), person.getPurchases().get(0).getItems().get(0).getName());
+    }
+
+    @Test
+    public void secondAndFourthLogins() throws IOException {
+        List<String> logins = people.get(0).getAccount().getLogins().subList(1, 4);
+        Account account = jackson5.convert(people, Account.class, Fields.Root("[0].account").include("logins[1:3]"));
+        assertEquals(logins, account.getLogins());
+    }
+
+    @Test
+    public void excludeSecondAndFourthLogins() throws IOException {
+        List<String> currentLogins = people.get(0).getAccount().getLogins();
+        List<String> logins = new ArrayList<>();
+        logins.add(currentLogins.get(0));
+        for (int i = 4; i < currentLogins.size(); i++)
+            logins.add(currentLogins.get(i));
+        Account account = jackson5.convert(people, Account.class, Fields.Root("[0].account").exclude("logins[1:3]"));
+        assertEquals(logins, account.getLogins());
+    }
+
+    @Test
+    public void serializeAndDeserializeDates() throws IOException {
         PojoDate pojoDate = new PojoDate();
         pojoDate.setLocalDateTime(LocalDateTime.now());
         pojoDate.setLocalDate(LocalDate.now());
         Date date = new Date();
         pojoDate.setDate(date);
         pojoDate.setSqlDate(new java.sql.Date(date.getTime()));
-
-        Jackson5 jackson5 = Jackson5.get();
 
         String json = jackson5.serialize(pojoDate);
         PojoDate pojoDate1 = jackson5.deserialize(json, PojoDate.class);
@@ -185,7 +158,7 @@ public class Jackson5Test {
     }
 
     @Test
-    public void test11() throws JsonProcessingException {
+    public void defaultDateFormats() throws JsonProcessingException {
         PojoDate pojoDate = new PojoDate();
         LocalDate localDate = LocalDate.of(2022, 2, 11);
         LocalDateTime localDateTime =
@@ -203,7 +176,7 @@ public class Jackson5Test {
     }
 
     @Test
-    public void test12() throws JsonProcessingException {
+    public void customDateFormats() throws JsonProcessingException {
         PojoDate pojoDate = new PojoDate();
         LocalDate localDate = LocalDate.of(2022, 2, 11);
         LocalDateTime localDateTime =
@@ -226,43 +199,5 @@ public class Jackson5Test {
         assertEquals("02/11/2022 23:36", json.get("date").asText());
         assertEquals("02/11/2022 23:36", json.get("sqlDate").asText());
         assertEquals("23:36", json.get("time").asText());
-    }
-
-    @Test
-    public void test13() throws IOException {
-        Jackson5 jackson5 = Jackson5.get();
-        String json = "{ 'name': 'test', 'description': 'description' }";
-        JsonNode jsonNode =
-                jackson5.json(json, Fields.Include("name"));
-        assertEquals("test", jsonNode.get("name").asText());
-        assertEquals(1, jsonNode.size());
-
-        Pojo pojo = jackson5.convert(new HashMap<String, Object>(){{ put("name", "test"); }}, Pojo.class);
-        assertEquals("test", pojo.getName());
-
-        Map<String, Object> map = jackson5.map(json);
-        assertEquals(jsonNode.get("name").asText(), map.get("name"));
-
-        String test = jackson5.serialize(json, Fields.Include("name"));
-        assertEquals("{\"name\":\"test\"}", test);
-
-        Pojo pojo1 = jackson5.deserialize(json, Pojo.class);
-        assertEquals("test", pojo1.getName());
-        assertEquals("description", pojo1.getDescription());
-    }
-
-    @Test
-    public void test14() throws IOException {
-        Pojo pojo = new Pojo("test2", "b")
-                .withPojos(new Pojo1("d").withPojos("7", "8", "9", "10", "11", "12")
-                        , new Pojo1("e")
-                        , new Pojo1("f"));
-
-        Jackson5 jackson5 = Jackson5.get();
-        JsonNode json = jackson5.json(pojo, Fields.Root("pojos[1].pojos"));
-        assertEquals("7", json.get(0).get("name").asText());
-
-        List<Pojo1> pojo1s = jackson5.convertCollection(json, Pojo1.class);
-        assertEquals("7", pojo1s.get(0).getName());
     }
 }

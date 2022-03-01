@@ -1,47 +1,39 @@
 package io.oreto.jackson.pojos;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class Pojo1 {
-    private String name;
-    private String description;
-    private List<Pojo2> pojos;
+    private String s1;
+    private String s2;
+
+    @JsonIgnore
+    private String s3;
 
     public Pojo1() {}
 
-    public Pojo1(String name) {
-        this.name = name;
-        pojos = new ArrayList<>();
+    public Pojo1(String s1, String s2, String s3) {
+        this.s1 = s1;
+        this.s2 = s2;
+        this.s3 = s3;
     }
 
-    public Pojo1(String name, String description) {
-        this(name);
-        this.description = description;
+    public String getS1() {
+        return s1;
+    }
+    public void setS1(String s1) {
+        this.s1 = s1;
+    }
+    public String getS2() {
+        return s2;
     }
 
-    public Pojo1 withPojos(String... names) {
-        for (String name : names) {
-            pojos.add(new Pojo2(name));
-        }
-        return this;
+    public void setS2(String s2) {
+        this.s2 = s2;
     }
-
-    public Pojo1 withPojos(Pojo2... pojos) {
-        Collections.addAll(this.pojos, pojos);
-        return this;
+    public String getS3() {
+        return s3;
     }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public List<Pojo2> getPojos() {
-        return pojos;
+    public void setS3(String s3) {
+        this.s3 = s3;
     }
 }

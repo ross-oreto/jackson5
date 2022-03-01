@@ -46,14 +46,15 @@ class FieldsDSL {
      * @return JsonNode
      */
     JsonNode json(Object o, IFields fields) throws JsonProcessingException {
+        if (o == null) return mapper.valueToTree(null);
         // if root is present, use the specified root.
         if (Str.isNotBlank(fields.root())) {
             o = useRoot(o, fields.root());
         }
         boolean inclusions = Str.isNotBlank(fields.include());
         boolean exclusions = Str.isNotBlank(fields.exclude());
-        // if there are no includes or excludes just render normally
-        if ((!exclusions || o == null) && !inclusions) {
+        if (!exclusions && !inclusions) {
+            // if there are no includes or excludes just render normally
             return o instanceof ObjectNode ? (JsonNode) o : mapper.valueToTree(o);
         } else {
             List<ObjectNode> json = initTree(o);
@@ -61,16 +62,14 @@ class FieldsDSL {
                 // both inclusions and exclusions
                 prune(json, Str.EMPTY, selector(fields.include()), true);
                 prune(json, Str.EMPTY, selector(fields.exclude()), false);
-                return json.size() == 1 ? json.get(0) : toArrayNode(json);
             } else if (inclusions) {
                 // only inclusions
                 prune(json, Str.EMPTY, selector(fields.include()), true);
-                return json.size() == 1 ? json.get(0) : toArrayNode(json);
             } else {
                 // only exclusions
                 prune(json, Str.EMPTY, selector(fields.exclude()), false);
-                return json.size() == 1 ? json.get(0) : toArrayNode(json);
             }
+            return json.size() == 1 ? json.get(0) : toArrayNode(json);
         }
     }
 
@@ -95,9 +94,9 @@ class FieldsDSL {
      */
     private Object useRoot(Object o, String root) {
         List<JsonNode> nodes = new ArrayList<>();
-
         Object node = mapper.valueToTree(o);
         List<ObjectNode> elements = new ArrayList<>();
+
         if (node instanceof ObjectNode) {
             elements.add((ObjectNode) node);
         } else if (node instanceof ArrayNode) {
@@ -106,18 +105,29 @@ class FieldsDSL {
                     elements.add((ObjectNode) jsonNode);
             }
             String str = root.trim();
-            if (str.startsWith("[") && str.endsWith("]")) {
-                String[] range = str.subSequence(1, str.length() - 1).toString().split(":");
-                int start = Str.toInteger(range[0]).orElse(1) - 1;
-                int end = range.length > 1 ? Str.toInteger(range[1]).orElse(start) : start;
-                o = end - start < 2 ? elements.get(start) : elements.subList(start, end);
-                root = null;
+            if (str.startsWith("[") && str.contains("]")) {
+                // in this case the root will be a subset in the ArrayNode
+                int i = str.indexOf(']');
+                String[] range = str.subSequence(1, i).toString().split(":");
+                int start = Str.toInteger(range[0]).orElse(0);
+                int end = (range.length > 1 ? Str.toInteger(range[1]).orElse(start) : start) + 1;
+                Subset subset = Subset.of(start, end).size(elements.size());
+                int len = str.length();
+                for (i = i + 1; i <len; i++) { if (str.charAt(i) != ' ' && str.charAt(i) != '.') break; }
+                if (i < str.length()) {
+                    root = str.substring(i);
+                    elements = elements.subList(subset.start, subset.end);
+                } else {
+                    root = null;
+                    o = end - start < 2 ? elements.get(subset.start) : elements.subList(subset.start, subset.end);
+                }
             }
         } else {
             elements = new ArrayList<>();
         }
         if (Objects.nonNull(root))
             gather(elements, Str.EMPTY, selector(root), nodes);
+
         int size = nodes.size();
         if (size == 1) o = nodes.get(0);
         else if (size > 1) {
@@ -128,6 +138,12 @@ class FieldsDSL {
         return o;
     }
 
+    /**
+     * Initialize the JSON tree from the initial object
+     * @param o The object to process
+     * @return A list of the root level ObjectNodes
+     * @throws JsonProcessingException If there is an issue converting the object to a JsonNode
+     */
     private List<ObjectNode> initTree(Object o) throws JsonProcessingException {
         List<ObjectNode> json = new ArrayList<>();
         if (o instanceof ObjectNode) {
@@ -369,6 +385,9 @@ class FieldsDSL {
         }
     }
 
+    /**
+     * A map of each path and associated mapping of selected fields.
+     */
     static class MultiMap {
         private final Map<String, SelectedFields> map = new LinkedHashMap<>();
 
@@ -389,6 +408,9 @@ class FieldsDSL {
         }
     }
 
+    /**
+     * Represents json fields and objects which are selected/present
+     */
     static class SelectedFields {
         final LinkedHashMap<String, String> properties;
         final LinkedHashMap<String, FieldObject> objects;
@@ -408,6 +430,9 @@ class FieldsDSL {
         }
     }
 
+    /**
+     * Represents a JSON object or JSON array with or without children
+     */
     static class FieldObject {
         static FieldObject of(String field) {
             return new FieldObject(field, false);
@@ -431,47 +456,61 @@ class FieldsDSL {
                 return indexCache.get(property);
 
             Map.Entry<String, Subset> subsetEntry = null;
-            if (property.matches(".*\\[[0-9]+]$")) {
+            if (property.matches(".*\\[-?[0-9]+]$")) {
                 int start = property.indexOf('[');
                 String name = property.substring(0, start).trim();
                 String index = property.substring(start + 1, property.length() - 1).trim();
                 start = Integer.parseInt(index);
-                subsetEntry = new AbstractMap.SimpleEntry<>(name, Subset.of(start - 1));
+                subsetEntry = new AbstractMap.SimpleEntry<>(name, Subset.of(start));
             } else if (property.matches(".*\\[[0-9]*:[0-9]*]$")) {
                 int start = property.indexOf('[');
                 String name = property.substring(0, start).trim();
                 String index = property.substring(start + 1, property.length() - 1).trim();
 
                 String[] range = index.split(":");
-                String a = range[0].trim();
+                String a = range.length > 0 ? range[0].trim() : Str.EMPTY;
                 String b = range.length > 1 ? range[1].trim() : Str.EMPTY;
                 subsetEntry = new AbstractMap.SimpleEntry<>(name
                         , Subset.of(
-                        a.equals(Str.EMPTY) ? null : Integer.parseInt(a) - 1
-                        , b.equals(Str.EMPTY) ? null : Integer.parseInt(b) - 1));
+                        a.equals(Str.EMPTY) ? null : Integer.parseInt(a)
+                        , b.equals(Str.EMPTY) ? null : Integer.parseInt(b)));
             }
             indexCache.put(property, subsetEntry);
             return subsetEntry;
         }
     }
 
+    /**
+     * Class to represent subsets of arrays and methods to apply those subsets
+     */
     static class Subset {
         static Subset of(Integer a, Integer b) { return new Subset(a, b); }
         static Subset of(Integer a) { return new Subset(a, a); }
 
         private Integer start, max;
-        private final Integer end, min;
+        private Integer end;
+        private final Integer min;
 
         private Subset(Integer a, Integer b) {
-            start(a);
-            end = b;
             min = max = 0;
+            start(a);
+            end(b);
         }
 
         private void start(Integer i) { this.start = i == null ? min : i; }
+        private void end(Integer i) { this.end = i == null ? max: i; }
 
         Subset size(Integer i) {
-            this.max = i - 1; return this;
+            this.max = i - 1;
+            if (start < 0)
+                start = i + start;
+            else if (start >= i)
+                start = this.max;
+            if (end < 0)
+                end = i + end;
+            else if (end > i)
+                end = i;
+            return this;
         }
 
         void apply(List<ObjectNode> newNodes, ArrayNode node) {
@@ -510,7 +549,7 @@ class FieldsDSL {
             }
         }
 
-        int computeStart() { return start < min ? min : start; }
+        int computeStart() { return start == null || start < min ? min : start; }
         int computeEnd() { return end == null || end > max ? max : end; }
     }
 }
