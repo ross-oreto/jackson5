@@ -41,7 +41,7 @@ Jackson5 jackson5 = Jackson5.get();
 Or create new Jackson5 objects by specifying a name.
 ``` 
 Jackson5.supply("foo", () -> mapper);
-Jackson5 jackson5 = Jackson5.get("foo");
+Jackson5 jackson5 = Jackson5.getOrDefault("foo");
 ```
 Using MapperConfig to create a new ObjectMapper with different date time patterns
 ```
@@ -49,7 +49,7 @@ Jackson5.supply("j5", MapperConfig.defaultConfig()
         .dateFormat("MM/dd/yyyy")
         .timeFormat("HH:mm")
         .dateTimeFormat("MM/dd/yyyy HH:mm"));
-Jackson5 jackson5 = Jackson5.get("j5");
+Jackson5 jackson5 = Jackson5.getOrDefault("j5");
 ```
 
 ### Serialization Usage
