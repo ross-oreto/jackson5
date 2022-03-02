@@ -143,6 +143,22 @@ public class Jackson5Test {
     }
 
     @Test
+    public void vehiclesWithNoVin() throws IOException {
+       List<Person> personList = jackson5.convertCollection(people
+               , Person.class
+               , Fields.Include("lastName vehicles").exclude("vehicles.vin"));
+       personList.forEach(p -> {
+           assertNull(p.getFirstName());
+           assertNotNull(p.getLastName());
+           assertFalse(p.getVehicles().isEmpty());
+           p.getVehicles().forEach(vehicle -> {
+               assertNull(vehicle.getVin());
+               assertNotNull(vehicle.getMake());
+           });
+       });
+    }
+
+    @Test
     public void serializeAndDeserializeDates() throws IOException {
         PojoDate pojoDate = new PojoDate();
         pojoDate.setLocalDateTime(LocalDateTime.now());
