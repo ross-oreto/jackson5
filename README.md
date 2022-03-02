@@ -23,7 +23,7 @@ Jackson5 does just that by providing a DSL to specify the json structure.
 ```
 
 ### The Jackson5 class
-- Firstly this class is a static container for ObjectMappers. Map<name -> ObjectMapper>
+- Firstly this class is a static container for ObjectMappers. Map[String -> ObjectMapper]
 - Jackson5 preserves thread safety by using the ObjectMapper reader()/writer() methods when possible and not calling any config methods post creation.
 - It also provides a handy way to create new object mappers using a fluent MapperConfig object
 
@@ -115,7 +115,7 @@ String csv = Csv.asCsv(elements);
 - So that's 1/10 or 2/10 of a millisecond slower that is un-noticeable for a great deal of dynamic flexibility.
 
 ### Spring Integration
-There are two options for integration Jackson5 into a Spring integration
+There are two options for integration Jackson5 into a Spring application 
 - Direct Approach (Override the ObjectMapper and register a Jackson5 bean for injection)
 ```
 @Bean
