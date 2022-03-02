@@ -31,9 +31,8 @@ Get a new Jackson5 using the get() method. Jackson5 will use its own ObjectMappe
 ```
 Jackson5 jackson5 = Jackson5.get();
 ```
-If your application already has an ObjectMapper that you want to use like a Spring Application with a managed bean.
+If your application already has an ObjectMapper that you want to use.
 ```
-@Autowired
 ObjectMapper mapper;
 
 Jackson5.supply(() -> mapper); 
@@ -114,3 +113,139 @@ String csv = Csv.asCsv(elements);
 - Jackson5 first converts an object into a JsonNode tree, then uses clever algorithms to prune the tree according to the Fields DSL specification.
 - The Jmh test cases which are included in the test package, demonstrate that Jackson5 is between .1 and .2 ms slower than straight Jackson.
 - So that's 1/10 or 2/10 of a millisecond slower that is un-noticeable for a great deal of dynamic flexibility.
+
+### Spring Integration
+There are two options for integration Jackson5 into a Spring integration
+- Direct Approach (Override the ObjectMapper and register a Jackson5 bean for injection)
+```
+@Bean
+@Primary
+public ObjectMapper objectMapper() {
+    return MapperConfig.defaultConfig().build();
+}
+
+@Bean
+Jackson5 jackson5() {
+    Jackson5.supply(this::objectMapper);
+    return Jackson5.get();
+}
+```
+- Fully Integrated Approach (Uses a custom HttpMessageConverter)
+Create a Response class to pass needed parameters such as Fields to Jackson5
+```
+public class Jackson5Response {
+    public static Jackson5Response of(Object body) {
+        return new Jackson5Response(body);
+    }
+    public static Jackson5Response empty() {
+        return new Jackson5Response();
+    }
+
+    Object body;
+    private Fields fields = Fields.Include("");
+    private String name = "";
+    private boolean pretty;
+
+    public Jackson5Response() {
+    }
+
+    public Jackson5Response(Object body) {
+        this.body = body;
+    }
+
+    public Jackson5Response fields(Fields fields) {
+        this.fields = fields;
+        return this;
+    }
+    public Jackson5Response name(String name) {
+        this.name = name;
+        return this;
+    }
+    public Jackson5Response name(Class<?> aClass) {
+        return name(aClass.getName());
+    }
+    public Jackson5Response pretty(boolean pretty) {
+        this.pretty = pretty;
+        return this;
+    }
+
+    public Object getBody() {
+        return body;
+    }
+    public Fields getFields() {
+        return fields;
+    }
+    public String getName() {
+        return name;
+    }
+    public boolean isPretty() {
+        return pretty;
+    }
+}
+```
+
+The custom HttpMessageConverter
+```
+public class Jackson5HttpMessageConverter extends AbstractHttpMessageConverter<Object> {
+    static List<MediaType> mediaTypes = new ArrayList<MediaType>() {{
+        add(MediaType.APPLICATION_JSON);
+    }};
+
+    @Override
+    protected boolean supports(Class<?> clazz) {
+        return Jackson5Response.class.isAssignableFrom(clazz);
+    }
+
+    @Override
+    protected Object readInternal(Class<?> clazz
+            , HttpInputMessage inputMessage) throws IOException, HttpMessageNotReadableException {
+        String text = new BufferedReader(
+                new InputStreamReader(inputMessage.getBody(), StandardCharsets.UTF_8))
+                .lines()
+                .collect(Collectors.joining("\n"));
+        return Jackson5.getOrDefault(clazz).deserialize(text, clazz);
+    }
+
+    @Override
+    protected void writeInternal(Object response
+            , HttpOutputMessage outputMessage) throws IOException, HttpMessageNotWritableException {
+        Jackson5Response j5Response = (Jackson5Response) response;
+        outputMessage.getBody().write(
+                Jackson5.getOrDefault(j5Response.getName())
+                        .serialize(j5Response.getBody(), j5Response.getFields(), j5Response.isPretty())
+                        .getBytes(StandardCharsets.UTF_8)
+        );
+    }
+
+    @Override
+    public List<MediaType> getSupportedMediaTypes(Class<?> clazz) {
+        return mediaTypes;
+    }
+
+    @Override
+    protected boolean canRead(MediaType mediaType) {
+        return mediaTypes.contains(mediaType);
+    }
+
+    @Override
+    protected boolean canWrite(MediaType mediaType) {
+        return mediaType == null || mediaTypes.contains(mediaType);
+    }
+}
+```
+
+Register the converter with Spring
+```
+@Override
+public void configureMessageConverters(List<HttpMessageConverter<?>> messageConverters) {
+    messageConverters.add(new Jackson5HttpMessageConverter());
+}
+```
+
+Then in a controller return the jackson5 response
+```
+@GetMapping
+public Jackson5Response example() {
+    return Jackson5Response.of(data);
+}
+```
