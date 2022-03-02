@@ -86,7 +86,7 @@ jackson5.serialize(data, Fields.Exclude("name"));
 ```
 - Only render first 10 elements
 ```
-jackson5.serialize(data, "list[1:10]");
+jackson5.serialize(data, "list[0:9]");
 ```
 - Change the root of the tree. If say the data of interest is down in class hierarchy
 ```
@@ -94,7 +94,7 @@ jackson5.serialize(data, Fields.Root("content.people").include("name address"));
 ```
 - Chaining together (This will look at only the first element in the collection)
 ```
-jackson5.serialize(data, Fields.Root("[1]").include("{ name address { street state }}"));
+jackson5.serialize(data, Fields.Root("[0]").include("{ name address { street state }}"));
 ```
 
 For more advanced examples, look at src/test/io/oreto/jackson/Jackson5Test
@@ -112,10 +112,10 @@ String csv = Csv.asCsv(elements);
 - When using the Fields DSL there is a little extra processing.
 - Jackson5 first converts an object into a JsonNode tree, then uses clever algorithms to prune the tree according to the Fields DSL specification.
 - The Jmh test cases which are included in the test package, demonstrate that Jackson5 is between .1 and .2 ms slower than straight Jackson.
-- So that's 1/10 or 2/10 of a millisecond slower that is un-noticeable for a great deal of dynamic flexibility.
+- So that's 1/10 or 2/10 of a millisecond slower and is un-noticeable for a great deal of dynamic flexibility.
 
 ### Spring Integration
-There are two options for integration Jackson5 into a Spring application 
+There are two options for integrating Jackson5 into a Spring application 
 - Direct Approach (Override the ObjectMapper and register a Jackson5 bean for injection)
 ```
 @Bean
@@ -211,7 +211,9 @@ public class Jackson5HttpMessageConverter extends AbstractHttpMessageConverter<O
             , HttpOutputMessage outputMessage) throws IOException, HttpMessageNotWritableException {
         Jackson5Response j5Response = (Jackson5Response) response;
         outputMessage.getBody().write(
-                Jackson5.getOrDefault(j5Response.getName())
+                j5Response.getBody() == null ? "".getBytes(StandardCharsets.UTF_8) :
+                Jackson5.find(j5Response.getBody().getClass())
+                        .orElse(Jackson5.getOrDefault(j5Response.getName()))
                         .serialize(j5Response.getBody(), j5Response.getFields(), j5Response.isPretty())
                         .getBytes(StandardCharsets.UTF_8)
         );
@@ -242,7 +244,7 @@ public void configureMessageConverters(List<HttpMessageConverter<?>> messageConv
 }
 ```
 
-Then in a controller return the jackson5 response
+Then in a controller, return the jackson5 response
 ```
 @GetMapping
 public Jackson5Response example() {
