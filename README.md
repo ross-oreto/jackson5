@@ -141,14 +141,12 @@ public class Jackson5Response {
         return new Jackson5Response();
     }
 
-    Object body;
+    private Object body;
     private Fields fields = Fields.Include("");
     private String name = "";
     private boolean pretty;
 
-    public Jackson5Response() {
-    }
-
+    public Jackson5Response() {}
     public Jackson5Response(Object body) {
         this.body = body;
     }
